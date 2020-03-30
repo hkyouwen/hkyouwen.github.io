@@ -1,0 +1,430 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge, chrome=1">
+  <meta name="renderer" content="webkit">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no", user-scalable=no">
+  <title>DataSketches Theta Sketch简介HK的博客</title>
+  <link rel="shortcut icon" href="">
+  
+    
+    
+      <link rel="stylesheet" href="/css/bootstrap.min.css">
+    
+      <link rel="stylesheet" href="/css/font-awesome.min.css">
+    
+      <link rel="stylesheet" href="/css/atom-one-dark.css">
+    
+      <link rel="stylesheet" href="/css/jquery.fancybox.css">
+    
+      <link rel="stylesheet" href="/css/nprogress.min.css">
+    
+      <link rel="stylesheet" href="/css/valine.css">
+    
+      <link rel="stylesheet" href="/css/life.css">
+    
+  
+
+  
+
+  <!-- jQuery first, then Tether, then Bootstrap JS. -->
+  
+  
+  
+    <script src="/js/jquery-2.2.4.min.js"></script>
+  
+    <script src="https://cdn1.lncld.net/static/js/3.1.0/av-min.js"></script>
+  
+    <script src="/js/jquery.pjax.js"></script>
+  
+    <script src="/js/nprogress.min.js"></script>
+  
+    <script src="/js/tether.min.js"></script>
+  
+    <script src="/js/bootstrap.min.js"></script>
+  
+    <script src="/js/highlight.min.js"></script>
+  
+    <script src="/js/highlightjs-line-numbers.min.js"></script>
+  
+    <script src="/js/jquery.fancybox.js"></script>
+  
+    <script src="/js/jquery.qrcode.min.js"></script>
+  
+    <script src="/js/Valine.min.js"></script>
+  
+  
+<meta name="generator" content="Hexo 4.2.0"></head>
+<body>
+<script>AV.init({appId:'',appKey:''});</script>
+<script type="text/javascript">
+      var config = {
+            ClasS: 'Counter',
+            el:'.views',
+            elP: '.views-post'
+      }
+</script>
+<div class="container">
+    <div class="row blog-box-shadow">
+        <!--博客主栏开始-->
+        <div class="col-xl-9 col-lg-12 blog-main" id="pjax-box">
+            <header class="blog-header">
+                <a href="http://yoursite.com" class="blog-header-mobile-title">HK的博客</a>
+                <a href="javascript:;" class="blog-header-navbar-btn"><i class="fa fa-bars"></i></a>
+                <nav class="blog-header-navbar blog-header-fixed">
+                    <ul class="blog-navbar-links">
+                        
+                          <li class="blog-nav-item"><a href="/" class="transition">首页</a></li>
+                        
+                          <li class="blog-nav-item"><a href="/about/" class="transition">关于</a></li>
+                        
+                          <li class="blog-nav-item"><a href="/links/" class="transition">链接</a></li>
+                        
+                        <div class="blog-navbar-right">
+                            <form action="">
+                                <div class="input-group">
+                                    <input type="text" class="blog-header-search" placeholder="search...">
+                                    <buttn type="submit" class="blog-header-search-btn"><i class="fa fa-search"></i></buttn>
+                                </div>
+                            </form>
+                        </div>
+                    </ul>
+                </nav>
+            </header>
+                
+<header class="blog-post-page-title">
+    <h4>DataSketches Theta Sketch简介</h4>
+    <time datetime="2020-03-30T10:44:06.955Z"><i class="fa fa-clock-o"></i>2020-03-30</time>
+    
+    
+    
+    
+	
+    
+</header>
+<div class="blog-main-post blog-post-page-box">
+    <article class="blog-post-block blog-post-page-content">
+        <section>
+            
+                <h3 id="DataSketches-Theta-Sketch简介"><a href="#DataSketches-Theta-Sketch简介" class="headerlink" title="DataSketches Theta Sketch简介"></a>DataSketches Theta Sketch简介</h3><h4 id="1-1DataSketches-Theta-Sketch概念"><a href="#1-1DataSketches-Theta-Sketch概念" class="headerlink" title="1.1DataSketches Theta Sketch概念"></a>1.1DataSketches Theta Sketch概念</h4><p>DataSketches Theta Sketch提供druid数据聚合，再数据摄入的过程创建存储在Druid sedments 上的Theta sketch objects，Theta sketch objects可以理解为一个Set的数据结构。在查询的过程，sketches 被读取并去重。最终，你得到一个sketch object内的元素去重之后的估计值，同时，你可以使用”postAggregations”对sketch object进行union，intersection和not操作。</p>
+<p>要使用DataSketches Theta Sketch，确保安装了扩展配置， druid.extensions.loadList=[“druid-datasketches”]</p>
+<p>DataSketches Theta Sketch更多介绍，参考：<br><a href="https://datasketches.github.io/docs/Theta/ThetaSketchFramework.html" target="_blank" rel="noopener">https://datasketches.github.io/docs/Theta/ThetaSketchFramework.html</a></p>
+<h4 id="1-2-DataSketches-Theta-Sketch原理"><a href="#1-2-DataSketches-Theta-Sketch原理" class="headerlink" title="1.2 DataSketches Theta Sketch原理"></a>1.2 DataSketches Theta Sketch原理</h4><p>DataSketches 是以Theta Sketch Framework (TSF) 框架为基础的。TSF是一个包含了多种sketching算法，并实现了多流数据之间进行集合运算的数学框架。TSF中包含了几个概念：<br>1，一个数据元组 (θ,S)，θ代表Theta，取值范围0&lt; θ &lt; 1，表示一个阈值。S代表Sketch，是一个数据集合，里面存储着不重复的哈希值x，x的取值范围也是0&lt;x&lt;1,并且x &lt; θ。也是Theta Sketch命名的由来。<br>2，一个通用的组合函数ThetaUnion，用来实现一组Theta Sketch的并集，交集和差值操作。<br>3，一个估值函数，根据Theta Sketch来估算出所有不重复的元素的数量。</p>
+<p>TSF的理论基础是KMV算法，先简单介绍一下KMV算法。KMV也就是Kth Minimum Value，字面理解就是用K个最小值来估计全部的元素数量。KMV主要解决去重计算中传统的hash算法随着元素数量增加而存储空间和查询时间不断增大的问题。KMV算法的策略是以存储更少的值（k 个值）为基础，从中可以估计出 N 的大小，而且误差范围固定。</p>
+<p>其中k值的大小对应上述TSF的Sketch的存储元素个数的上界，用来更新和淘汰Sketch中的元素，同时也决定了最终估计值的准确度。</p>
+<p>![555](d:\Users\002616\My Pictures\555.png)</p>
+<p>上图是KMV的大致原理，假设最左边的输入流中有10个不重复的数字，首先在输入的过程中通过一个HASH函数将这10个数字的值均匀映射为10个大于0且小于1的值，对应上述TSF中的x值，在本例中为0.008到0.922。然后我们选定k值的大小为3，那么将只保留最小的3个哈希值，第k小的hash值就是0.195。最后运用估值函数计算预期结果，KMV的估值函数为(k-1)/Value(k),本例中即为(3-1)/0.195 = 10.26。准确估计出了假设值。</p>
+<p>![666](d:\Users\002616\My Pictures\666.png)</p>
+<p>更近一步，选定了k值之后，大于k的那些hash值可以不需要存储，这样可以节省空间。这样当写入更小的hash时，将新的hash写入，同时更新及淘汰旧的Value(k)即可。需要说明的是如果插入的元素数量达不到k值，则估值就是已有的元素的数量。比如k=3，但<br>Sketch中只有两个hash，则估值结果就是2。</p>
+<p>TSF在KMV的基础上有些小的改动，增加了一个θ的值用来代替Value(k)，θ保存第k+1小的hash值，如果hash数量小于k，则θ值永远为1.0。 两外TSF将KMV中的分子(k-1)表示为S，S的定义是所有hash值小于θ值的hash元素集合。那么|S|就是所有hash值小于θ值的hash元素的数量。则TSF的估值函数就是|S|/θ。</p>
+<p>![777](d:\Users\002616\My Pictures\777.png)</p>
+<p>还是用之前的示例，输入流中不重复元素个数为10，k=3，那么在TSF中，θ为Value(k+1)即0.386，S为所有小于0.386的hash值集合，所以|S|=3，估值为3/0.386。<br>同样在hash数量小于k时，例如为2时，也就是输入流中不重复元素个数为2时，此时|S|=2，θ值还是初始值为1.0，那么估值就是2/1.0=2。</p>
+<h3 id="2-DataSketches-Theta-Sketch语法"><a href="#2-DataSketches-Theta-Sketch语法" class="headerlink" title="2 DataSketches Theta Sketch语法"></a>2 DataSketches Theta Sketch语法</h3><h4 id="2-1数据摄入"><a href="#2-1数据摄入" class="headerlink" title="2.1数据摄入"></a>2.1数据摄入</h4><p>Aggregators：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">&quot;type&quot; : &quot;thetaSketch&quot;, </span><br><span class="line">&quot;name&quot; : &lt;output_name&gt;, </span><br><span class="line">&quot;fieldName&quot; : &lt;metric_name&gt;, </span><br><span class="line">&quot;isInputThetaSketch&quot;: false, </span><br><span class="line">&quot;size&quot;: 16384 </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+<table>
+<thead>
+<tr>
+<th>property</th>
+<th>description</th>
+<th>required?</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>type</td>
+<td>总是”thetaSketch”</td>
+<td>是</td>
+</tr>
+<tr>
+<td>name</td>
+<td>输出字段名称(String)</td>
+<td>是</td>
+</tr>
+<tr>
+<td>fieldName</td>
+<td>输入字段名称(String)</td>
+<td>是</td>
+</tr>
+<tr>
+<td>isInputThetaSketch</td>
+<td>只在摄入的数据中包含theta sketch objects时使用，即从druid之外的其他使用datasketchs库的系统向druid摄入数据的场景如：Pig/Hive</td>
+<td>否，默认false</td>
+</tr>
+<tr>
+<td>size</td>
+<td>2的倍数，代表要存储在theta sketch objects中的所有元素的个数。该值越大，准确度却高，需要消耗的存储空间也越大。当指定了某个特定的size值之后，druid会将sketch保存在segment中，查询只能使用&gt;=该size的值。 推荐使用默认值</td>
+<td>否，默认16384</td>
+</tr>
+</tbody></table>
+<p>示例：</p>
+<p>海量日志按uicid去重，注意这里摄入的”fieldName”:”uicIdNum”的值为具体的需要去重的id值，不是统计的数值：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">&quot;parser&quot;: &#123;</span><br><span class="line">      &quot;type&quot;: &quot;string&quot;,</span><br><span class="line">      &quot;parseSpec&quot;: &#123;</span><br><span class="line">        &quot;format&quot;: &quot;json&quot;,</span><br><span class="line">        &quot;timestampSpec&quot;: &#123;</span><br><span class="line">          &quot;column&quot;: &quot;fc_time&quot;,</span><br><span class="line">          &quot;format&quot;: &quot;yyyy-MM-dd HH:mm:ss&quot;</span><br><span class="line">        &#125;,</span><br><span class="line">        &quot;dimensionsSpec&quot;: &#123;</span><br><span class="line">          &quot;dimensions&quot;: [</span><br><span class="line">            &quot;bizDate&quot;,</span><br><span class="line">			&quot;hour&quot;,</span><br><span class="line">            &quot;project&quot;,</span><br><span class="line">            &quot;os&quot;,</span><br><span class="line">            &quot;eventId&quot;,</span><br><span class="line">            &quot;eventKey&quot;</span><br><span class="line">          ]</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;,</span><br><span class="line">    &quot;metricsSpec&quot;: [</span><br><span class="line">      &#123;</span><br><span class="line">        &quot;name&quot;: &quot;uicIdNum&quot;,</span><br><span class="line">        &quot;fieldName&quot;:&quot;uicIdNum&quot;,</span><br><span class="line">        &quot;type&quot;: &quot;thetaSketch&quot;</span><br><span class="line">      &#125;</span><br><span class="line">    ]</span><br></pre></td></tr></table></figure>
+
+<p>![企业微信截图_1](d:\Users\002616\My Pictures\企业微信截图_1.png)</p>
+<h4 id="2-2数据查询"><a href="#2-2数据查询" class="headerlink" title="2.2数据查询"></a>2.2数据查询</h4><h5 id="2-2-1sql查询："><a href="#2-2-1sql查询：" class="headerlink" title="2.2.1sql查询："></a>2.2.1sql查询：</h5><p>sql查询Sketch的列，使用<strong>APPROX_COUNT_DISTINCT_DS_THETA</strong>函数</p>
+<p>![企业微信截图_15706191401896](d:\Users\002616\My Pictures\企业微信截图_15706191401896.png)</p>
+<p>示例：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">SELECT __time,os,APPROX_COUNT_DISTINCT_DS_THETA(uicIdNum) as uicIdNum</span><br><span class="line">FROM &quot;huge_log_funnel_analysis&quot;</span><br><span class="line">WHERE &quot;__time&quot; &gt;&#x3D; CURRENT_TIMESTAMP - INTERVAL &#39;1&#39; DAY</span><br><span class="line">GROUP BY __time,os</span><br></pre></td></tr></table></figure>
+<p>![企业微信截图_2](d:\Users\002616\My Pictures\企业微信截图_2.png)</p>
+<h5 id="2-2-2json查询："><a href="#2-2-2json查询：" class="headerlink" title="2.2.2json查询："></a>2.2.2json查询：</h5><p>按小时去重ios人数：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  &quot;queryType&quot;: &quot;groupBy&quot;,</span><br><span class="line">  &quot;dataSource&quot;: &quot;huge_log_funnel_analysis&quot;,</span><br><span class="line">  &quot;granularity&quot;: &quot;hour&quot;,</span><br><span class="line">  &quot;dimensions&quot;: [],</span><br><span class="line">  &quot;aggregations&quot;: [</span><br><span class="line">    &#123; &quot;type&quot;: &quot;thetaSketch&quot;, &quot;name&quot;: &quot;uicIdNum&quot;, &quot;fieldName&quot;: &quot;uicIdNum&quot; &#125;</span><br><span class="line">  ],</span><br><span class="line">  &quot;filter&quot;: &#123; &quot;type&quot;: &quot;selector&quot;, &quot;dimension&quot;: &quot;os&quot;, &quot;value&quot;: &quot;ios&quot; &#125;,</span><br><span class="line">  &quot;intervals&quot;: [ &quot;2019-10-17T00:00:00.000Z&#x2F;2019-10-18T00:00:00.000Z&quot; ]</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>![企业微信截图_4](d:\Users\002616\My Pictures\企业微信截图_4.png)</p>
+<h4 id="2-3高级查询"><a href="#2-3高级查询" class="headerlink" title="2.3高级查询"></a>2.3高级查询</h4><p>通过Post Aggregators可实现UNION，INTERSECT，NOT查询</p>
+<h5 id="2-3-1-UNION查询："><a href="#2-3-1-UNION查询：" class="headerlink" title="2.3.1 UNION查询："></a>2.3.1 UNION查询：</h5><p>求android和ios使用人数并集：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  &quot;queryType&quot;: &quot;groupBy&quot;,</span><br><span class="line">  &quot;dataSource&quot;: &quot;huge_log_funnel_analysis&quot;,</span><br><span class="line">  &quot;granularity&quot;: &quot;hour&quot;,</span><br><span class="line">  &quot;dimensions&quot;: [],</span><br><span class="line">  &quot;filter&quot;: &#123;</span><br><span class="line">    &quot;type&quot;: &quot;or&quot;,</span><br><span class="line">    &quot;fields&quot;: [</span><br><span class="line">      &#123;&quot;type&quot;: &quot;selector&quot;, &quot;dimension&quot;: &quot;os&quot;, &quot;value&quot;: &quot;android&quot;&#125;,</span><br><span class="line">      &#123;&quot;type&quot;: &quot;selector&quot;, &quot;dimension&quot;: &quot;os&quot;, &quot;value&quot;: &quot;ios&quot;&#125;</span><br><span class="line">    ]</span><br><span class="line">  &#125;,</span><br><span class="line">  &quot;aggregations&quot;: [</span><br><span class="line">    &#123;</span><br><span class="line">      &quot;type&quot; : &quot;filtered&quot;,</span><br><span class="line">      &quot;filter&quot; : &#123;</span><br><span class="line">        &quot;type&quot; : &quot;selector&quot;,</span><br><span class="line">        &quot;dimension&quot; : &quot;os&quot;,</span><br><span class="line">        &quot;value&quot; : &quot;android&quot;</span><br><span class="line">      &#125;,</span><br><span class="line">      &quot;aggregator&quot; :     &#123;</span><br><span class="line">        &quot;type&quot;: &quot;thetaSketch&quot;, &quot;name&quot;: &quot;uicIdNumAndroid&quot;, &quot;fieldName&quot;: &quot;uicIdNum&quot;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;,</span><br><span class="line">    &#123;</span><br><span class="line">      &quot;type&quot; : &quot;filtered&quot;,</span><br><span class="line">      &quot;filter&quot; : &#123;</span><br><span class="line">        &quot;type&quot; : &quot;selector&quot;,</span><br><span class="line">        &quot;dimension&quot; : &quot;os&quot;,</span><br><span class="line">        &quot;value&quot; : &quot;ios&quot;</span><br><span class="line">      &#125;,</span><br><span class="line">      &quot;aggregator&quot; :     &#123;</span><br><span class="line">        &quot;type&quot;: &quot;thetaSketch&quot;, &quot;name&quot;: &quot;uicIdNumIos&quot;, &quot;fieldName&quot;: &quot;uicIdNum&quot;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  ],</span><br><span class="line">  &quot;postAggregations&quot;: [</span><br><span class="line">    &#123;</span><br><span class="line">      &quot;type&quot;: &quot;thetaSketchEstimate&quot;,</span><br><span class="line">      &quot;name&quot;: &quot;uicIdNum&quot;,</span><br><span class="line">      &quot;field&quot;:</span><br><span class="line">      &#123;</span><br><span class="line">        &quot;type&quot;: &quot;thetaSketchSetOp&quot;,</span><br><span class="line">        &quot;name&quot;: &quot;uicIdNum&quot;,</span><br><span class="line">        &quot;func&quot;: &quot;UNION&quot;,</span><br><span class="line">        &quot;fields&quot;: [</span><br><span class="line">          &#123;</span><br><span class="line">            &quot;type&quot;: &quot;fieldAccess&quot;,</span><br><span class="line">            &quot;fieldName&quot;: &quot;uicIdNumAndroid&quot;</span><br><span class="line">          &#125;,</span><br><span class="line">          &#123;</span><br><span class="line">            &quot;type&quot;: &quot;fieldAccess&quot;,</span><br><span class="line">            &quot;fieldName&quot;: &quot;uicIdNumIos&quot;</span><br><span class="line">          &#125;</span><br><span class="line">        ]</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  ],</span><br><span class="line">  &quot;intervals&quot;: [</span><br><span class="line">    &quot;2019-10-17T00:00:00.000Z&#x2F;2019-10-18T00:00:00.000Z&quot;</span><br><span class="line">  ]</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>![企业微信截图_5](d:\Users\002616\My Pictures\企业微信截图_5.png)</p>
+<h5 id="2-3-2-INTERSECT："><a href="#2-3-2-INTERSECT：" class="headerlink" title="2.3.2 INTERSECT："></a>2.3.2 INTERSECT：</h5><p>android，ios使用人数交集</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">&quot;postAggregations&quot;: [</span><br><span class="line">    &#123;</span><br><span class="line">      &quot;type&quot;: &quot;thetaSketchEstimate&quot;,</span><br><span class="line">      &quot;name&quot;: &quot;uicIdNum&quot;,</span><br><span class="line">      &quot;field&quot;:</span><br><span class="line">      &#123;</span><br><span class="line">        &quot;type&quot;: &quot;thetaSketchSetOp&quot;,</span><br><span class="line">        &quot;name&quot;: &quot;uicIdNum&quot;,</span><br><span class="line">        &quot;func&quot;: &quot;INTERSECT&quot;,</span><br><span class="line">        &quot;fields&quot;: [</span><br><span class="line">          &#123;</span><br><span class="line">            &quot;type&quot;: &quot;fieldAccess&quot;,</span><br><span class="line">            &quot;fieldName&quot;: &quot;uicIdNumAndroid&quot;</span><br><span class="line">          &#125;,</span><br><span class="line">          &#123;</span><br><span class="line">            &quot;type&quot;: &quot;fieldAccess&quot;,</span><br><span class="line">            &quot;fieldName&quot;: &quot;uicIdNumIos&quot;</span><br><span class="line">          &#125;</span><br><span class="line">        ]</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  ],</span><br></pre></td></tr></table></figure>
+<p>![企业微信截图_6](d:\Users\002616\My Pictures\企业微信截图_6.png)</p>
+<h5 id="2-3-3-NOT："><a href="#2-3-3-NOT：" class="headerlink" title="2.3.3 NOT："></a>2.3.3 NOT：</h5><p>只使用android不使用ios的人数，刚好等于android使用人数- 交集的人数</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">&quot;postAggregations&quot;: [</span><br><span class="line">    &#123;</span><br><span class="line">      &quot;type&quot;: &quot;thetaSketchEstimate&quot;,</span><br><span class="line">      &quot;name&quot;: &quot;uicIdNum&quot;,</span><br><span class="line">      &quot;field&quot;:</span><br><span class="line">      &#123;</span><br><span class="line">        &quot;type&quot;: &quot;thetaSketchSetOp&quot;,</span><br><span class="line">        &quot;name&quot;: &quot;uicIdNum&quot;,</span><br><span class="line">        &quot;func&quot;: &quot;NOT&quot;,</span><br><span class="line">        &quot;fields&quot;: [</span><br><span class="line">          &#123;</span><br><span class="line">            &quot;type&quot;: &quot;fieldAccess&quot;,</span><br><span class="line">            &quot;fieldName&quot;: &quot;uicIdNumAndroid&quot;</span><br><span class="line">          &#125;,</span><br><span class="line">          &#123;</span><br><span class="line">            &quot;type&quot;: &quot;fieldAccess&quot;,</span><br><span class="line">            &quot;fieldName&quot;: &quot;uicIdNumIos&quot;</span><br><span class="line">          &#125;</span><br><span class="line">        ]</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  ],</span><br></pre></td></tr></table></figure>
+
+<p>![企业微信截图_7](d:\Users\002616\My Pictures\企业微信截图_7.png)</p>
+<h4 id="2-4关于size"><a href="#2-4关于size" class="headerlink" title="2.4关于size"></a>2.4关于size</h4><p>size必须为2的倍数，size的大小&gt;=一个统计维度内所有不重复的数值的总个数</p>
+<p>举例:按天，按终端类型(android/os)统计uv数据。如果一天内android的uv数预计为1000，os的uv数预计为900，则size数可设置为1024。thetaSketch是将android和ios两部分的用户id分别存储在segment里，如果合并查询os和android的uv数，thetaSketch会将两部分数据合并去重。</p>
+<p>size设置过小会导致去重结果不准确，使用APPROX_COUNT_DISTINCT_DS_THETA<br>函数查询结果会偏大，使用json查询会出现浮点位。</p>
+<p>![Image](d:\Users\002616\My Pictures\Image.png)</p>
+<p>默认数据摄入和查询的size数为16384，使用默认值可不设置size参数。如果需要手动指定size的大小，那么在摄入时需要设置size的具体值，如：<code>{&quot;type&quot; : &quot;thetaSketch&quot;, 
+&quot;name&quot; :&quot;uv&quot;, 
+&quot;fieldName&quot; :&quot;uid&quot;, 
+&quot;size&quot;:  32768</code>}, 注意这种情况下在使用查询语句时也必须指定size的大小，并且size的大小需&gt;=32768。如: <code>APPROX_COUNT_DISTINCT_DS_THETA(uv, 65536)</code>, <code>{
+      &quot;name&quot;: &quot;visit&quot;,
+      &quot;type&quot;: &quot;thetaSketch&quot;,
+      &quot;fieldName&quot;: &quot;visit&quot;,
+      &quot;size&quot;:65536
+    }</code></p>
+<h4 id="参考文献："><a href="#参考文献：" class="headerlink" title="参考文献："></a>参考文献：</h4><p>1，druid.io官网 <a href="https://druid.apache.org/docs/latest/design/" target="_blank" rel="noopener">https://druid.apache.org/docs/latest/design/</a></p>
+<p>2，DataSketches官网 <a href="https://datasketches.github.io/docs/Theta/ThetaSketchFramework.html" target="_blank" rel="noopener">https://datasketches.github.io/docs/Theta/ThetaSketchFramework.html</a></p>
+<p>3，<a href="https://www.infoq.com/news/2016/01/Yahoo-open-sources-data-sketches/" target="_blank" rel="noopener">https://www.infoq.com/news/2016/01/Yahoo-open-sources-data-sketches/</a></p>
+
+            
+        </section>
+        <footer class="blog-post-page-tags">
+        
+			
+		
+        </footer>
+    </article>
+    <article class="blog-post-page-readmore">
+    	
+    	
+		
+
+		
+		
+			<a href="/2020/03/23/TwoPhaseCommitSinkFunction/" class="blog-post-page-readmore-next" data-toggle="tooltip" data-placement="top" title="TwoPhaseCommitSinkFunction">下一篇</a>
+		
+
+        <div style="clear: both;"></div>
+    </article>
+
+    <article class="blog-post-block blog-post-page-content">
+            <div class="row">
+            
+                <div class="col-md-4 col-sm-4 post-page-more-btn">
+                    <span class="post-comments-btn btn btn-info btn-block" data-toggle="tooltip" data-placement="top" title="本站采用Disqus评论组件，若您没有科学上网可能会无法查看并评论">加载评论</span>
+                </div>
+            
+                <div class="col-md-4 col-sm-4 post-page-more-btn">
+                    <span  data-toggle="modal" data-target="#post-donate-content">
+                        <span id="post-donate-btn" class="btn btn-danger btn-block" data-toggle="tooltip" data-placement="top" title="如果您觉得本文还不错或者对您有帮助，可以考虑打赏一下作者哦">打赏本文</span>
+                    </span>
+                </div>
+                <div class="col-md-4 col-sm-4 post-page-more-btn">
+                    <span  data-toggle="modal" data-target="#post-qrcode-content">
+                        <span><span id="post-qrcode-btn" class="btn btn-success btn-block" data-toggle="tooltip" data-placement="top" title="微信扫描二维码手机端查看本文及分享本文">二维码</span></span>
+                    </span>
+                </div>
+            </div>
+        <div class="post-more-function-br"></div>
+
+        <div class="modal fade" id="post-donate-content" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="exampleModalLabel">打赏本文</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row post-donate-content">
+                            <div class="col-md-4">
+                                <p>支付宝</p>
+                                <img class="post-donate-content-img no-lightbox" src="http://dl.weic96.cn/logo.png"/>
+                            </div>
+                            <div class="col-md-4">
+                                <p>微信</p>
+                                <img class="post-donate-content-img no-lightbox" src="http://dl.weic96.cn/logo.png"/>
+                            </div>
+                            <div class="col-md-4">
+                                <p>财付通</p>
+                                <img class="post-donate-content-img no-lightbox" src="http://dl.weic96.cn/logo.png"/>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">关闭</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="post-qrcode-content" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-sm" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="exampleModalLabel">文章二维码</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row post-qrcode-content">
+                            <span class="post-qrcode-content-canvas"></span>
+                            <img class="post-qrcode-content-img no-lightbox" src=""/>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">关闭</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <script>
+            // post QRcode
+            // 中文转码
+            function toUtf8(str) {
+                var out, i, len, c;
+                out = "";
+                len = str.length;
+                for (i = 0; i < len; i++) {
+                    c = str.charCodeAt(i);
+                    if ((c >= 0x0001) && (c <= 0x007F)) {
+                        out += str.charAt(i);
+                    } else if (c > 0x07FF) {
+                        out += String.fromCharCode(0xE0 | ((c >> 12) & 0x0F));
+                        out += String.fromCharCode(0x80 | ((c >> 6) & 0x3F));
+                        out += String.fromCharCode(0x80 | ((c >> 0) & 0x3F));
+                    } else {
+                        out += String.fromCharCode(0xC0 | ((c >> 6) & 0x1F));
+                        out += String.fromCharCode(0x80 | ((c >> 0) & 0x3F));
+                    }
+                }
+                return out;
+            }
+            // 生成
+            var qrcode= $('.post-qrcode-content-canvas').qrcode({width: 150,height: 150,text: toUtf8("http://yoursite.com/2020/03/30/DataSketches%20Theta%20Sketch%E7%AE%80%E4%BB%8B/")}).hide();
+            var canvas=qrcode.find('canvas').get(0);
+            $('.post-qrcode-content-img').attr('src',canvas.toDataURL('image/jpg'));
+        </script>
+
+        
+    </article>
+    
+</div>
+
+                
+            <footer class="blog-footer">
+                <p class="blog-footer-left">Copyright ©  2020 <a href="http://yoursite.com">HK的博客</a></p>
+                <p class="blog-footer-right">Powered by <a href="https://hexo.io" target="_blank">Hexo</a>,Theme <a href="https://note.isweic.com/themes-life/" target="_blank">Life</a></p>
+            </footer>
+        </div><!--博客主栏结束-->
+        <!--博客侧边栏开始-->
+        <div class="col-xl-3 blog-sidebar">
+            <div class="blog-sidebar-title">
+                <a href="">HK的博客</a>
+            </div>
+            <div class="blog-sidebar-logo">
+                <img src="https://github.com/hkyouwen/hkyouwen.github.io/tree/master/images/timg.jfif">
+            </div>
+            <div class="blog-sidebar-count blog-sidebar-padding">
+                <div class="blog-sidebar-count-left">
+                    <p class="blog-sidebar-count-p">3</p>
+                    <span class="blog-sidebar-count-span">文章</span>
+                </div>
+                <div class="blog-sidebar-count-right">
+                    <p class="blog-sidebar-count-p">0</p>
+                    <span class="blog-sidebar-count-span">标签</span>
+                </div>
+                <div style="clear: both;"></div>
+            </div>
+            <div class="blog-sidebar-icon blog-sidebar-padding">
+                <ul>
+                    <li><a href="" class="icon-github" target="_blank" data-toggle="tooltip" data-placement="top" title="Github"><i class="fa fa-github"></i></a></li>
+                    <li><a href="" class="icon-weibo" target="_blank" data-toggle="tooltip" data-placement="top" title="新浪微博"><i class="fa fa-weibo"></i></a></li>
+                    <li><a href="" class="icon-twitter" target="_blank" data-toggle="tooltip" data-placement="top" title="Twitter"><i class="fa fa-twitter"></i></a></li>
+                    <!--<li><a href="" class="icon-facebook" target="_blank" data-toggle="tooltip" data-placement="top" title="FaceBook"><i class="fa fa-facebook"></i></a></li>-->
+                    <li><a href="mailto:" class="icon-email" data-toggle="tooltip" data-placement="top" title="E-Mail"><i class="fa fa-envelope"></i></a></li>
+                    <li><a href="" class="icon-rss" data-toggle="tooltip" target="_blank" data-placement="top" title="RSS"><i class="fa fa-rss"></i></a></li>
+                </ul>
+            </div>
+            <div class="blog-sidebar-categories">
+                <h4 class="blog-sidebar-h4"><i class="fa fa-folder-open"></i>&nbsp;文章分类</h4>
+                <ul class="list-group blog-sidebar-padding">
+                  
+                </ul>
+            </div>
+            <div class="blog-sidebar-tags">
+                <h4 class="blog-sidebar-h4"><i class="fa fa-tag"></i>&nbsp;标签云</h4>
+                <ul class="blog-sidebar-tags-ul blog-sidebar-padding">
+                  
+                </ul>
+            </div>
+            <script>
+              // 博客侧栏标签云随机色
+              var tag_cloud = $('.tag-could');
+              tag_cloud.each(function () {
+                  var Cnum = 9;
+                  var Crand = parseInt(Math.random() * Cnum);
+                  $(this).addClass("tag-could" + Crand);
+              })
+            </script>
+            <!--返回顶部按钮-->
+            <div class="retop">
+                <i class="fa fa-angle-up"></i>
+            </div>
+        </div><!--博客侧边栏结束-->
+    </div>
+</div>
+<script src="/js/LeanStatistics.min.js"></script>
+<script src="/js/Life.js"></script>
+<script type="text/javascript">
+    hljs.initHighlightingOnLoad();
+    hljs.initLineNumbersOnLoad();
+    otherF();
+    LeanStatistics();
+    $(document).pjax('a', '#pjax-box', {fragment:'#pjax-box', timeout:8000}).on('pjax:complete', function() {
+      $('pre code').each(function(i, block){
+        hljs.highlightBlock(block);
+      })
+      $('code.hljs').each(function(i, block) {
+        hljs.lineNumbersBlock(block);
+      });
+      LeanStatistics();
+    }).on('pjax:start', function() { NProgress.start(); }).on('pjax:end',   function() {
+      NProgress.done();
+      otherF();
+    });
+</script>
+</body>
+</html>
