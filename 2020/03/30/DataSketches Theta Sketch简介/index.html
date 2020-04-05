@@ -86,10 +86,13 @@
 <meta property="og:site_name" content="HK书屋">
 <meta property="og:description" content="DataSketches Theta Sketch简介1.1DataSketches Theta Sketch概念DataSketches Theta Sketch提供druid数据聚合，再数据摄入的过程创建存储在Druid sedments 上的Theta sketch objects，Theta sketch objects可以理解为一个Set的数据结构。在查询的过程，sketches 被读取">
 <meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://yoursite.com/2020/03/30/DataSketches%20Theta%20Sketch%E7%AE%80%E4%BB%8B/555.png">
+<meta property="og:image" content="http://yoursite.com/2020/03/30/DataSketches%20Theta%20Sketch%E7%AE%80%E4%BB%8B/666.png">
 <meta property="article:published_time" content="2020-03-30T10:44:06.955Z">
-<meta property="article:modified_time" content="2020-03-31T10:20:25.157Z">
+<meta property="article:modified_time" content="2020-04-05T08:17:34.061Z">
 <meta property="article:author" content="John Doe">
 <meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://yoursite.com/2020/03/30/DataSketches%20Theta%20Sketch%E7%AE%80%E4%BB%8B/555.png">
 
 
 
@@ -181,9 +184,9 @@
       
         
         <li class="menu-item menu-item-home">
-          <a href="/%20" rel="section">
+          <a href="/" rel="section">
             
-              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+              <i class="menu-item-icon fa fa-fw fa-question-circle"></i> <br />
             
             Home
           </a>
@@ -191,9 +194,9 @@
       
         
         <li class="menu-item menu-item-about">
-          <a href="/about/%20" rel="section">
+          <a href="/about/" rel="section">
             
-              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+              <i class="menu-item-icon fa fa-fw fa-question-circle"></i> <br />
             
             About
           </a>
@@ -201,9 +204,9 @@
       
         
         <li class="menu-item menu-item-tags">
-          <a href="/tags/%20" rel="section">
+          <a href="/tags/" rel="section">
             
-              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+              <i class="menu-item-icon fa fa-fw fa-question-circle"></i> <br />
             
             Tags
           </a>
@@ -211,9 +214,9 @@
       
         
         <li class="menu-item menu-item-categories">
-          <a href="/categories/%20" rel="section">
+          <a href="/categories/" rel="section">
             
-              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+              <i class="menu-item-icon fa fa-fw fa-question-circle"></i> <br />
             
             Categories
           </a>
@@ -221,9 +224,9 @@
       
         
         <li class="menu-item menu-item-archives">
-          <a href="/archives/%20" rel="section">
+          <a href="/archives/" rel="section">
             
-              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+              <i class="menu-item-icon fa fa-fw fa-question-circle"></i> <br />
             
             Archives
           </a>
@@ -335,9 +338,9 @@
 <h4 id="1-2-DataSketches-Theta-Sketch原理"><a href="#1-2-DataSketches-Theta-Sketch原理" class="headerlink" title="1.2 DataSketches Theta Sketch原理"></a>1.2 DataSketches Theta Sketch原理</h4><p>DataSketches 是以Theta Sketch Framework (TSF) 框架为基础的。TSF是一个包含了多种sketching算法，并实现了多流数据之间进行集合运算的数学框架。TSF中包含了几个概念：<br>1，一个数据元组 (θ,S)，θ代表Theta，取值范围0&lt; θ &lt; 1，表示一个阈值。S代表Sketch，是一个数据集合，里面存储着不重复的哈希值x，x的取值范围也是0&lt;x&lt;1,并且x &lt; θ。也是Theta Sketch命名的由来。<br>2，一个通用的组合函数ThetaUnion，用来实现一组Theta Sketch的并集，交集和差值操作。<br>3，一个估值函数，根据Theta Sketch来估算出所有不重复的元素的数量。</p>
 <p>TSF的理论基础是KMV算法，先简单介绍一下KMV算法。KMV也就是Kth Minimum Value，字面理解就是用K个最小值来估计全部的元素数量。KMV主要解决去重计算中传统的hash算法随着元素数量增加而存储空间和查询时间不断增大的问题。KMV算法的策略是以存储更少的值（k 个值）为基础，从中可以估计出 N 的大小，而且误差范围固定。</p>
 <p>其中k值的大小对应上述TSF的Sketch的存储元素个数的上界，用来更新和淘汰Sketch中的元素，同时也决定了最终估计值的准确度。</p>
-<p>![](DataSketches Theta Sketch简介/555.png)</p>
+<p><img src="/2020/03/30/DataSketches%20Theta%20Sketch%E7%AE%80%E4%BB%8B/555.png" alt></p>
 <p>上图是KMV的大致原理，假设最左边的输入流中有10个不重复的数字，首先在输入的过程中通过一个HASH函数将这10个数字的值均匀映射为10个大于0且小于1的值，对应上述TSF中的x值，在本例中为0.008到0.922。然后我们选定k值的大小为3，那么将只保留最小的3个哈希值，第k小的hash值就是0.195。最后运用估值函数计算预期结果，KMV的估值函数为(k-1)/Value(k),本例中即为(3-1)/0.195 = 10.26。准确估计出了假设值。</p>
-<p>![](DataSketches Theta Sketch简介/666.png)</p>
+<p><img src="/2020/03/30/DataSketches%20Theta%20Sketch%E7%AE%80%E4%BB%8B/666.png" alt></p>
 <p>更近一步，选定了k值之后，大于k的那些hash值可以不需要存储，这样可以节省空间。这样当写入更小的hash时，将新的hash写入，同时更新及淘汰旧的Value(k)即可。需要说明的是如果插入的元素数量达不到k值，则估值就是已有的元素的数量。比如k=3，但<br>Sketch中只有两个hash，则估值结果就是2。</p>
 <p>TSF在KMV的基础上有些小的改动，增加了一个θ的值用来代替Value(k)，θ保存第k+1小的hash值，如果hash数量小于k，则θ值永远为1.0。 两外TSF将KMV中的分子(k-1)表示为S，S的定义是所有hash值小于θ值的hash元素集合。那么|S|就是所有hash值小于θ值的hash元素的数量。则TSF的估值函数就是|S|/θ。</p>
 <p>![](DataSketches Theta Sketch简介/777.png)</p>
@@ -528,7 +531,7 @@
             
               <div class="site-state-item site-state-posts">
               
-                <a href="/archives/%20%7C%7C%20archive">
+                <a href="/archives/">
               
                   <span class="site-state-item-count">3</span>
                   <span class="site-state-item-name">posts</span>
