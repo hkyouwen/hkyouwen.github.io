@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next muse use-motion" lang="en">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="Hexo, NexT" />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="zeppelin 0.9版本支持引入了对sql的支持，可以直接在notebook通过DDL语句创建输入和输出的table。  简单看了一下zeppelin把sql翻译成flink代码的原理。zeppelin中的flink的interpreter支持多种flink的api:  其中%flink.bsql和%flink.ssql对应sql类型的interpreter，以bsql为例，bsql的入口类为">
+<meta property="og:type" content="article">
+<meta property="og:title" content="zeppelin的sql解析初探">
+<meta property="og:url" content="http://yoursite.com/2020/04/07/zeppelin%E7%9A%84sql%E8%A7%A3%E6%9E%90%E5%88%9D%E6%8E%A2/index.html">
+<meta property="og:site_name" content="HK书屋">
+<meta property="og:description" content="zeppelin 0.9版本支持引入了对sql的支持，可以直接在notebook通过DDL语句创建输入和输出的table。  简单看了一下zeppelin把sql翻译成flink代码的原理。zeppelin中的flink的interpreter支持多种flink的api:  其中%flink.bsql和%flink.ssql对应sql类型的interpreter，以bsql为例，bsql的入口类为">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://yoursite.com/2020/04/07/zeppelin%E7%9A%84sql%E8%A7%A3%E6%9E%90%E5%88%9D%E6%8E%A2/640.png">
+<meta property="og:image" content="http://yoursite.com/2020/04/07/zeppelin%E7%9A%84sql%E8%A7%A3%E6%9E%90%E5%88%9D%E6%8E%A2/1.png">
+<meta property="article:published_time" content="2020-04-07T02:37:19.437Z">
+<meta property="article:modified_time" content="2020-04-07T02:47:27.287Z">
+<meta property="article:author" content="HH KKs">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://yoursite.com/2020/04/07/zeppelin%E7%9A%84sql%E8%A7%A3%E6%9E%90%E5%88%9D%E6%8E%A2/640.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Muse',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: 'Author'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2020/04/07/zeppelin的sql解析初探/"/>
+
+
+
+
+
+  <title>zeppelin的sql解析初探 | HK书屋</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.0"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="en">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">HK书屋</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-question-circle"></i> <br />
+            
+            Home
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-question-circle"></i> <br />
+            
+            About
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-question-circle"></i> <br />
+            
+            Tags
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-question-circle"></i> <br />
+            
+            Categories
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-question-circle"></i> <br />
+            
+            Archives
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/04/07/zeppelin%E7%9A%84sql%E8%A7%A3%E6%9E%90%E5%88%9D%E6%8E%A2/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="HH KKs">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="HK书屋">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">zeppelin的sql解析初探</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">Posted on</span>
+              
+              <time title="Post created" itemprop="dateCreated datePublished" datetime="2020-04-07T10:37:19+08:00">
+                2020-04-07
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>zeppelin 0.9版本支持引入了对sql的支持，可以直接在notebook通过DDL语句创建输入和输出的table。</p>
+<p><img src="/2020/04/07/zeppelin%E7%9A%84sql%E8%A7%A3%E6%9E%90%E5%88%9D%E6%8E%A2/640.png" alt></p>
+<p>简单看了一下zeppelin把sql翻译成flink代码的原理。zeppelin中的flink的interpreter支持多种flink的api:</p>
+<p><img src="/2020/04/07/zeppelin%E7%9A%84sql%E8%A7%A3%E6%9E%90%E5%88%9D%E6%8E%A2/1.png" alt></p>
+<p>其中%flink.bsql和%flink.ssql对应sql类型的interpreter，以bsql为例，bsql的入口类为org.apache.zeppelin.flink.FlinkBatchSqlInterpreter。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">public class FlinkBatchSqlInterpreter extends FlinkSqlInterrpeter</span><br></pre></td></tr></table></figure>
+
+<p>FlinkBatchSqlInterpreter继承自FlinkSqlInterrpeter，所以主要解析逻辑在FlinkSqlInterrpeter</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">public InterpreterResult interpret(String st,</span><br><span class="line">                                     InterpreterContext context) throws InterpreterException &#123;</span><br><span class="line">    LOGGER.debug(&quot;Interpret code: &quot; + st);</span><br><span class="line">    flinkInterpreter.getZeppelinContext().setInterpreterContext(context);</span><br><span class="line">    flinkInterpreter.getZeppelinContext().setNoteGui(context.getNoteGui());</span><br><span class="line">    flinkInterpreter.getZeppelinContext().setGui(context.getGui());</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F; set ClassLoader of current Thread to be the ClassLoader of Flink scala-shell,</span><br><span class="line">    &#x2F;&#x2F; otherwise codegen will fail to find classes defined in scala-shell</span><br><span class="line">    ClassLoader originClassLoader &#x3D; Thread.currentThread().getContextClassLoader();</span><br><span class="line">    try &#123;</span><br><span class="line">      Thread.currentThread().setContextClassLoader(flinkInterpreter.getFlinkScalaShellLoader());</span><br><span class="line">      return runSqlList(st, context);</span><br><span class="line">    &#125; finally &#123;</span><br><span class="line">      Thread.currentThread().setContextClassLoader(originClassLoader);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>FlinkSqlInterrpeter的interpret方法为翻译入口，入参st即为notebook上键入的sql字符串。st被传入runSqlList方法。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">private InterpreterResult runSqlList(String st, InterpreterContext context) &#123;</span><br><span class="line">    currentConfigOptions.clear();</span><br><span class="line">    List&lt;String&gt; sqls &#x3D; sqlSplitter.splitSql(st);</span><br><span class="line">    for (String sql : sqls) &#123;</span><br><span class="line">      Optional&lt;SqlCommandParser.SqlCommandCall&gt; sqlCommand &#x3D; SqlCommandParser.parse(sql);</span><br><span class="line">      ......</span><br><span class="line">      try &#123;</span><br><span class="line">        callCommand(sqlCommand.get(), context);</span><br><span class="line">        context.out.flush();</span><br><span class="line">      &#125; catch (Throwable e) &#123;</span><br><span class="line">        ......</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>runSqlList将st分割成子语句并使用SqlCommandParser.parse解析语句，根据解析出的command类型如（CREATE TABLE，INSERT_INTO等）进行逻辑执行（callCommand）。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br></pre></td><td class="code"><pre><span class="line">public List&lt;String&gt; splitSql(String text) &#123;</span><br><span class="line">    text &#x3D; text.trim();</span><br><span class="line">    List&lt;String&gt; queries &#x3D; new ArrayList&lt;&gt;();</span><br><span class="line">    StringBuilder query &#x3D; new StringBuilder();</span><br><span class="line">    char character;</span><br><span class="line"></span><br><span class="line">    boolean multiLineComment &#x3D; false;</span><br><span class="line">    boolean singleLineComment &#x3D; false;</span><br><span class="line">    boolean singleQuoteString &#x3D; false;</span><br><span class="line">    boolean doubleQuoteString &#x3D; false;</span><br><span class="line"></span><br><span class="line">    for (int index &#x3D; 0; index &lt; text.length(); index++) &#123;</span><br><span class="line">      character &#x3D; text.charAt(index);</span><br><span class="line"></span><br><span class="line">      &#x2F;&#x2F; end of single line comment</span><br><span class="line">      if (singleLineComment &amp;&amp; (character &#x3D;&#x3D; &#39;\n&#39;)) &#123;</span><br><span class="line">        singleLineComment &#x3D; false;</span><br><span class="line">        if (query.toString().trim().isEmpty()) &#123;</span><br><span class="line">          continue;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      &#x2F;&#x2F; end of multiple line comment</span><br><span class="line">      if (multiLineComment &amp;&amp; character &#x3D;&#x3D; &#39;&#x2F;&#39; &amp;&amp; text.charAt(index - 1) &#x3D;&#x3D; &#39;*&#39;) &#123;</span><br><span class="line">        multiLineComment &#x3D; false;</span><br><span class="line">        if (query.toString().trim().isEmpty()) &#123;</span><br><span class="line">          continue;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      if (character &#x3D;&#x3D; &#39;\&#39;&#39;) &#123;</span><br><span class="line">        if (singleQuoteString) &#123;</span><br><span class="line">          singleQuoteString &#x3D; false;</span><br><span class="line">        &#125; else if (!doubleQuoteString) &#123;</span><br><span class="line">          singleQuoteString &#x3D; true;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      if (character &#x3D;&#x3D; &#39;&quot;&#39;) &#123;</span><br><span class="line">        if (doubleQuoteString &amp;&amp; index &gt; 0) &#123;</span><br><span class="line">          doubleQuoteString &#x3D; false;</span><br><span class="line">        &#125; else if (!singleQuoteString) &#123;</span><br><span class="line">          doubleQuoteString &#x3D; true;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      if (!singleQuoteString &amp;&amp; !doubleQuoteString &amp;&amp; !multiLineComment &amp;&amp; !singleLineComment</span><br><span class="line">              &amp;&amp; text.length() &gt; (index + 1)) &#123;</span><br><span class="line">        if (isSingleLineComment(text.charAt(index), text.charAt(index + 1))) &#123;</span><br><span class="line">          singleLineComment &#x3D; true;</span><br><span class="line">        &#125; else if (text.charAt(index) &#x3D;&#x3D; &#39;&#x2F;&#39; &amp;&amp; text.charAt(index + 1) &#x3D;&#x3D; &#39;*&#39;) &#123;</span><br><span class="line">          multiLineComment &#x3D; true;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      if (character &#x3D;&#x3D; &#39;;&#39; &amp;&amp; !singleQuoteString &amp;&amp; !doubleQuoteString &amp;&amp; !multiLineComment</span><br><span class="line">              &amp;&amp; !singleLineComment) &#123;</span><br><span class="line">        &#x2F;&#x2F; meet semicolon</span><br><span class="line">        queries.add(query.toString().trim());</span><br><span class="line">        query &#x3D; new StringBuilder();</span><br><span class="line">      &#125; else if (index &#x3D;&#x3D; (text.length() - 1)) &#123;</span><br><span class="line">        &#x2F;&#x2F; meet the last character</span><br><span class="line">        if (!singleLineComment &amp;&amp; !multiLineComment) &#123;</span><br><span class="line">          query.append(character);</span><br><span class="line">          queries.add(query.toString().trim());</span><br><span class="line">        &#125;</span><br><span class="line">      &#125; else if (!singleLineComment &amp;&amp; !multiLineComment) &#123;</span><br><span class="line">        &#x2F;&#x2F; normal case, not in single line comment and not in multiple line comment</span><br><span class="line">        query.append(character);</span><br><span class="line">      &#125; else if (singleLineComment &amp;&amp; !query.toString().trim().isEmpty()) &#123;</span><br><span class="line">        &#x2F;&#x2F; in single line comment, only add it to query when the single line comment is</span><br><span class="line">        &#x2F;&#x2F; in the middle of sql statement</span><br><span class="line">        &#x2F;&#x2F; e.g.</span><br><span class="line">        &#x2F;&#x2F; select a -- comment</span><br><span class="line">        &#x2F;&#x2F; from table_1</span><br><span class="line">        query.append(character);</span><br><span class="line">      &#125; else if (multiLineComment &amp;&amp; !query.toString().trim().isEmpty()) &#123;</span><br><span class="line">        &#x2F;&#x2F; in multiple line comment, only add it to query when the multiple line comment</span><br><span class="line">        &#x2F;&#x2F; is in the middle of sql statement.</span><br><span class="line">        &#x2F;&#x2F; e.g.</span><br><span class="line">        &#x2F;&#x2F; select a &#x2F;* comment *&#x2F;</span><br><span class="line">        &#x2F;&#x2F; from table_1</span><br><span class="line">        query.append(character);</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    return queries;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>st的分割过程，可以看注释内容，主要是逐个字符的遍历及’\n’和’;’及引号等符号还有注释内容的逻辑判断，最终得到各个自语句<code>List&lt;String&gt; queries</code>。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">public static Optional&lt;SqlCommandCall&gt; parse(String stmt) &#123;</span><br><span class="line">    &#x2F;&#x2F; normalize</span><br><span class="line">    stmt &#x3D; stmt.trim();</span><br><span class="line">    &#x2F;&#x2F; remove &#39;;&#39; at the end</span><br><span class="line">    if (stmt.endsWith(&quot;;&quot;)) &#123;</span><br><span class="line">      stmt &#x3D; stmt.substring(0, stmt.length() - 1).trim();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F; parse</span><br><span class="line">    for (SqlCommand cmd : SqlCommand.values()) &#123;</span><br><span class="line">      final Matcher matcher &#x3D; cmd.pattern.matcher(stmt);</span><br><span class="line">      if (matcher.matches()) &#123;</span><br><span class="line">        final String[] groups &#x3D; new String[matcher.groupCount()];</span><br><span class="line">        for (int i &#x3D; 0; i &lt; groups.length; i++) &#123;</span><br><span class="line">          groups[i] &#x3D; matcher.group(i + 1);</span><br><span class="line">        &#125;</span><br><span class="line">        final String sql &#x3D; stmt;</span><br><span class="line">        return cmd.operandConverter.apply(groups)</span><br><span class="line">                .map((operands) -&gt; new SqlCommandCall(cmd, operands, sql));</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    return Optional.empty();</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>逐个子语句解析，解析过程也比较简单，就是遍历各种SqlCommand，然后用正则表达式进行匹配看子语句中包含哪个类型的SqlCommand，。然后得到一个SqlCommandCall的类，包含命令名，被操作字符串及sql语句。</p>
+<p>其中被操作字符串operands由operandConverter来提取，分为NO_OPERANDS和SINGLE_OPERAND：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">private static final Function&lt;String[], Optional&lt;String[]&gt;&gt; NO_OPERANDS &#x3D;</span><br><span class="line">          (operands) -&gt; Optional.of(new String[0]);</span><br><span class="line"></span><br><span class="line">  private static final Function&lt;String[], Optional&lt;String[]&gt;&gt; SINGLE_OPERAND &#x3D;</span><br><span class="line">          (operands) -&gt; Optional.of(new String[]&#123;operands[0]&#125;);</span><br></pre></td></tr></table></figure>
+
+<p>NO_OPERANDS即不需要操作sql的命令，如HELP，QUIT，CLEAR等，SINGLE_OPERAND为操作单个字符串的命令，如CREATE TABLE，INSERT_INTO等，更复杂的命令要单独提取，如SET。命令的正则表达式及operandConverter示例如下所示：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line">public enum SqlCommand &#123;</span><br><span class="line">    QUIT(</span><br><span class="line">            &quot;(QUIT|EXIT)&quot;,</span><br><span class="line">            NO_OPERANDS),</span><br><span class="line"></span><br><span class="line">    CLEAR(</span><br><span class="line">            &quot;CLEAR&quot;,</span><br><span class="line">            NO_OPERANDS),</span><br><span class="line"></span><br><span class="line">   ......</span><br><span class="line"></span><br><span class="line">    CREATE_TABLE(&quot;(CREATE\\s+TABLE\\s+.*)&quot;, SINGLE_OPERAND),</span><br><span class="line"></span><br><span class="line">    DROP_TABLE(&quot;(DROP\\s+TABLE\\s+.*)&quot;, SINGLE_OPERAND),</span><br><span class="line"></span><br><span class="line">    CREATE_VIEW(</span><br><span class="line">            &quot;CREATE\\s+VIEW\\s+(\\S+)\\s+AS\\s+(.*)&quot;,</span><br><span class="line">            (operands) -&gt; &#123;</span><br><span class="line">              if (operands.length &lt; 2) &#123;</span><br><span class="line">                return Optional.empty();</span><br><span class="line">              &#125;</span><br><span class="line">              return Optional.of(new String[]&#123;operands[0], operands[1]&#125;);</span><br><span class="line">            &#125;),</span><br><span class="line"></span><br><span class="line">    ......</span><br><span class="line"></span><br><span class="line">    SET(</span><br><span class="line">            &quot;SET(\\s+(\\S+)\\s*&#x3D;(.*))?&quot;, &#x2F;&#x2F; whitespace is only ignored on the left side of &#39;&#x3D;&#39;</span><br><span class="line">            (operands) -&gt; &#123;</span><br><span class="line">              if (operands.length &lt; 3) &#123;</span><br><span class="line">                return Optional.empty();</span><br><span class="line">              &#125; else if (operands[0] &#x3D;&#x3D; null) &#123;</span><br><span class="line">                return Optional.of(new String[0]);</span><br><span class="line">              &#125;</span><br><span class="line">              return Optional.of(new String[]&#123;operands[1], operands[2]&#125;);</span><br><span class="line">            &#125;),</span><br><span class="line"></span><br><span class="line">    public final Pattern pattern;</span><br><span class="line">    public final Function&lt;String[], Optional&lt;String[]&gt;&gt; operandConverter;</span><br><span class="line"></span><br><span class="line">    SqlCommand(String matchingRegex, Function&lt;String[], Optional&lt;String[]&gt;&gt; operandConverter) &#123;</span><br><span class="line">      this.pattern &#x3D; Pattern.compile(matchingRegex, DEFAULT_PATTERN_FLAGS);</span><br><span class="line">      this.operandConverter &#x3D; operandConverter;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>解析完之后进入runSqlList的callCommand方法执行命令</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br></pre></td><td class="code"><pre><span class="line">private void callCommand(SqlCommandParser.SqlCommandCall cmdCall,</span><br><span class="line">                                       InterpreterContext context) throws Exception &#123;</span><br><span class="line">   switch (cmdCall.command) &#123;</span><br><span class="line">     case HELP:</span><br><span class="line">       callHelp(context);</span><br><span class="line">       break;</span><br><span class="line">     case SHOW_CATALOGS:</span><br><span class="line">       callShowCatalogs(context);</span><br><span class="line">       break;</span><br><span class="line">     case SHOW_DATABASES:</span><br><span class="line">       callShowDatabases(context);</span><br><span class="line">       break;</span><br><span class="line">     case SHOW_TABLES:</span><br><span class="line">       callShowTables(context);</span><br><span class="line">       break;</span><br><span class="line">     case SOURCE:</span><br><span class="line">       callSource(cmdCall.operands[0], context);</span><br><span class="line">       break;</span><br><span class="line">     case SHOW_FUNCTIONS:</span><br><span class="line">       callShowFunctions(context);</span><br><span class="line">       break;</span><br><span class="line">     case SHOW_MODULES:</span><br><span class="line">       callShowModules(context);</span><br><span class="line">       break;</span><br><span class="line">     case USE_CATALOG:</span><br><span class="line">       callUseCatalog(cmdCall.operands[0], context);</span><br><span class="line">       break;</span><br><span class="line">     case USE:</span><br><span class="line">       callUseDatabase(cmdCall.operands[0], context);</span><br><span class="line">       break;</span><br><span class="line">     case DESCRIBE:</span><br><span class="line">       callDescribe(cmdCall.operands[0], context);</span><br><span class="line">       break;</span><br><span class="line">     case EXPLAIN:</span><br><span class="line">       callExplain(cmdCall.operands[0], context);</span><br><span class="line">       break;</span><br><span class="line">     case SELECT:</span><br><span class="line">       callSelect(cmdCall.operands[0], context);</span><br><span class="line">       break;</span><br><span class="line">     case SET:</span><br><span class="line">       callSet(cmdCall.operands[0], cmdCall.operands[1], context);</span><br><span class="line">       break;</span><br><span class="line">     case INSERT_INTO:</span><br><span class="line">     case INSERT_OVERWRITE:</span><br><span class="line">       callInsertInto(cmdCall.operands[0], context);</span><br><span class="line">       break;</span><br><span class="line">     case CREATE_TABLE:</span><br><span class="line">       callCreateTable(cmdCall.operands[0], context);</span><br><span class="line">       break;</span><br><span class="line">     case DROP_TABLE:</span><br><span class="line">       callDropTable(cmdCall.operands[0], context);</span><br><span class="line">       break;</span><br><span class="line">     case CREATE_VIEW:</span><br><span class="line">       callCreateView(cmdCall.operands[0], cmdCall.operands[1], context);</span><br><span class="line">       break;</span><br><span class="line">     case DROP_VIEW:</span><br><span class="line">       callDropView(cmdCall.operands[0], context);</span><br><span class="line">       break;</span><br><span class="line">     case CREATE_DATABASE:</span><br><span class="line">       callCreateDatabase(cmdCall.operands[0], context);</span><br><span class="line">       break;</span><br><span class="line">     case DROP_DATABASE:</span><br><span class="line">       callDropDatabase(cmdCall.operands[0], context);</span><br><span class="line">       break;</span><br><span class="line">     case ALTER_DATABASE:</span><br><span class="line">       callAlterDatabase(cmdCall.operands[0], context);</span><br><span class="line">       break;</span><br><span class="line">     case ALTER_TABLE:</span><br><span class="line">       callAlterTable(cmdCall.operands[0], context);</span><br><span class="line">       break;</span><br><span class="line">     default:</span><br><span class="line">       throw new Exception(&quot;Unsupported command: &quot; + cmdCall.command);</span><br><span class="line">   &#125;</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure>
+
+<p>根据命令名调用不同的api。如CREATE TABLE命令调用callCreateTable</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">private void callCreateTable(String sql, InterpreterContext context) throws IOException &#123;</span><br><span class="line">    try &#123;</span><br><span class="line">      lock.lock();</span><br><span class="line">      this.tbenv.sqlUpdate(sql);</span><br><span class="line">    &#125; finally &#123;</span><br><span class="line">      if (lock.isHeldByCurrentThread()) &#123;</span><br><span class="line">        lock.unlock();</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    context.out.write(&quot;Table has been created.\n&quot;);</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>直接调用sqlUpdate api，则翻译成了flink1.10的flink sql代码。</p>
+<p>如上CREATE TABLE为通用逻辑，而SELECT则区分batch和stream</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">public void callSelect(String sql, InterpreterContext context) throws IOException &#123;</span><br><span class="line">    try &#123;</span><br><span class="line">      ......</span><br><span class="line">      callInnerSelect(sql, context);</span><br><span class="line">    &#125; finally &#123;</span><br><span class="line">      if (lock.isHeldByCurrentThread()) &#123;</span><br><span class="line">        lock.unlock();</span><br><span class="line">      &#125;</span><br><span class="line">    ......</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  public abstract void callInnerSelect(String sql, InterpreterContext context) throws IOException;</span><br></pre></td></tr></table></figure>
+
+<p>callInnerSelect为抽象方法</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">public void callInnerSelect(String sql, InterpreterContext context) throws IOException &#123;</span><br><span class="line">    Table table &#x3D; this.tbenv.sqlQuery(sql);</span><br><span class="line">    z.setCurrentSql(sql);</span><br><span class="line">    String result &#x3D; z.showData(table);</span><br><span class="line">    context.out.write(result);</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>上面为FlinkBatchSqlInterpreter的实现，比较简单直接调用sqlQuery即可</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br></pre></td><td class="code"><pre><span class="line">public void callInnerSelect(String sql, InterpreterContext context) throws IOException &#123;</span><br><span class="line">    String savepointDir &#x3D; context.getLocalProperties().get(&quot;savepointDir&quot;);</span><br><span class="line">    if (!StringUtils.isBlank(savepointDir)) &#123;</span><br><span class="line">      Object savepointPath &#x3D; flinkInterpreter.getZeppelinContext()</span><br><span class="line">              .angular(context.getParagraphId() + &quot;_savepointpath&quot;, context.getNoteId(), null);</span><br><span class="line">      if (savepointPath &#x3D;&#x3D; null) &#123;</span><br><span class="line">        LOGGER.info(&quot;savepointPath is null because it is the first run&quot;);</span><br><span class="line">      &#125; else &#123;</span><br><span class="line">        LOGGER.info(&quot;set savepointPath to: &quot; + savepointPath.toString());</span><br><span class="line">        this.flinkInterpreter.getFlinkConfiguration()</span><br><span class="line">                .setString(&quot;execution.savepoint.path&quot;, savepointPath.toString());</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    String streamType &#x3D; context.getLocalProperties().get(&quot;type&quot;);</span><br><span class="line">    if (streamType &#x3D;&#x3D; null) &#123;</span><br><span class="line">      throw new IOException(&quot;type must be specified for stream sql&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">    if (streamType.equalsIgnoreCase(&quot;single&quot;)) &#123;</span><br><span class="line">      SingleRowStreamSqlJob streamJob &#x3D; new SingleRowStreamSqlJob(</span><br><span class="line">              flinkInterpreter.getStreamExecutionEnvironment(),</span><br><span class="line">              tbenv,</span><br><span class="line">              flinkInterpreter.getJobManager(),</span><br><span class="line">              context,</span><br><span class="line">              flinkInterpreter.getDefaultParallelism());</span><br><span class="line">      streamJob.run(sql);</span><br><span class="line">    &#125; else if (streamType.equalsIgnoreCase(&quot;append&quot;)) &#123;</span><br><span class="line">      AppendStreamSqlJob streamJob &#x3D; new AppendStreamSqlJob(</span><br><span class="line">              flinkInterpreter.getStreamExecutionEnvironment(),</span><br><span class="line">              flinkInterpreter.getStreamTableEnvironment(),</span><br><span class="line">              flinkInterpreter.getJobManager(),</span><br><span class="line">              context,</span><br><span class="line">              flinkInterpreter.getDefaultParallelism());</span><br><span class="line">      streamJob.run(sql);</span><br><span class="line">    &#125; else if (streamType.equalsIgnoreCase(&quot;update&quot;)) &#123;</span><br><span class="line">      UpdateStreamSqlJob streamJob &#x3D; new UpdateStreamSqlJob(</span><br><span class="line">              flinkInterpreter.getStreamExecutionEnvironment(),</span><br><span class="line">              flinkInterpreter.getStreamTableEnvironment(),</span><br><span class="line">              flinkInterpreter.getJobManager(),</span><br><span class="line">              context,</span><br><span class="line">              flinkInterpreter.getDefaultParallelism());</span><br><span class="line">      streamJob.run(sql);</span><br><span class="line">    &#125; else &#123;</span><br><span class="line">      throw new IOException(&quot;Unrecognized stream type: &quot; + streamType);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>FlinkStreamSqlInterpreter的实现则更复杂，分append，update等模式，后面再研究。</p>
+<p>附上现有的SqlCommand类型</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">public static final AttributedString MESSAGE_HELP &#x3D; new AttributedStringBuilder()</span><br><span class="line">          .append(&quot;The following commands are available:\n\n&quot;)</span><br><span class="line">          .append(formatCommand(SqlCommand.CREATE_TABLE, &quot;Create table under current catalog and database.&quot;))</span><br><span class="line">          .append(formatCommand(SqlCommand.DROP_TABLE, &quot;Drop table with optional catalog and database. Syntax: &#39;DROP TABLE [IF EXISTS] &lt;name&gt;;&#39;&quot;))</span><br><span class="line">          .append(formatCommand(SqlCommand.CREATE_VIEW, &quot;Creates a virtual table from a SQL query. Syntax: &#39;CREATE VIEW &lt;name&gt; AS &lt;query&gt;;&#39;&quot;))</span><br><span class="line">          .append(formatCommand(SqlCommand.DESCRIBE, &quot;Describes the schema of a table with the given name.&quot;))</span><br><span class="line">          .append(formatCommand(SqlCommand.DROP_VIEW, &quot;Deletes a previously created virtual table. Syntax: &#39;DROP VIEW &lt;name&gt;;&#39;&quot;))</span><br><span class="line">          .append(formatCommand(SqlCommand.EXPLAIN, &quot;Describes the execution plan of a query or table with the given name.&quot;))</span><br><span class="line">          .append(formatCommand(SqlCommand.HELP, &quot;Prints the available commands.&quot;))</span><br><span class="line">          .append(formatCommand(SqlCommand.INSERT_INTO, &quot;Inserts the results of a SQL SELECT query into a declared table sink.&quot;))</span><br><span class="line">          .append(formatCommand(SqlCommand.INSERT_OVERWRITE, &quot;Inserts the results of a SQL SELECT query into a declared table sink and overwrite existing data.&quot;))</span><br><span class="line">          .append(formatCommand(SqlCommand.SELECT, &quot;Executes a SQL SELECT query on the Flink cluster.&quot;))</span><br><span class="line">          .append(formatCommand(SqlCommand.SET, &quot;Sets a session configuration property. Syntax: &#39;SET &lt;key&gt;&#x3D;&lt;value&gt;;&#39;. Use &#39;SET;&#39; for listing all properties.&quot;))</span><br><span class="line">          .append(formatCommand(SqlCommand.SHOW_FUNCTIONS, &quot;Shows all user-defined and built-in functions.&quot;))</span><br><span class="line">          .append(formatCommand(SqlCommand.SHOW_TABLES, &quot;Shows all registered tables.&quot;))</span><br><span class="line">          .append(formatCommand(SqlCommand.SOURCE, &quot;Reads a SQL SELECT query from a file and executes it on the Flink cluster.&quot;))</span><br><span class="line">          .append(formatCommand(SqlCommand.USE_CATALOG, &quot;Sets the current catalog. The current database is set to the catalog&#39;s default one. Experimental! Syntax: &#39;USE CATALOG &lt;name&gt;;&#39;&quot;))</span><br><span class="line">          .append(formatCommand(SqlCommand.USE, &quot;Sets the current default database. Experimental! Syntax: &#39;USE &lt;name&gt;;&#39;&quot;))</span><br><span class="line">          .style(AttributedStyle.DEFAULT.underline())</span><br><span class="line">          .append(&quot;\nHint&quot;)</span><br><span class="line">          .style(AttributedStyle.DEFAULT)</span><br><span class="line">          .append(&quot;: Make sure that a statement ends with &#39;;&#39; for finalizing (multi-line) statements.&quot;)</span><br><span class="line">          .toAttributedString();</span><br></pre></td></tr></table></figure>
+
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2020/03/30/DataSketches%20Theta%20Sketch%E7%AE%80%E4%BB%8B/" rel="next" title="DataSketches Theta Sketch简介">
+                <i class="fa fa-chevron-left"></i> DataSketches Theta Sketch简介
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2020/04/07/kafka%20Schema%20Registry%E4%BB%8B%E7%BB%8D/" rel="prev" title="kafka Schema Registry介绍">
+                kafka Schema Registry介绍 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+
+      <section class="site-overview-wrap sidebar-panel sidebar-panel-active">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">HH KKs</p>
+              <p class="site-description motion-element" itemprop="description"></p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">5</span>
+                  <span class="site-state-item-name">posts</span>
+                </a>
+              </div>
+            
+
+            
+
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">HH KKs</span>
+
+  
+</div>
+
+
+  <div class="powered-by">Powered by <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a></div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">Theme &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Muse</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
