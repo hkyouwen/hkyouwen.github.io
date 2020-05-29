@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next muse use-motion" lang="en">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="Hexo, NexT" />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="最近遇到了一个使用了flink的Side Outputs的场景，这里记录一下。 需求的场景比较简单，从kafka接收用户的微信id去实时查询微信的接口获取用户的信息并写入数据库。接口是批量查询接口，可以一次传入多个id。因此有一个问题，如果一批id中有一个非法id，会导致同一批数据全部返回失败。这就需要把返回结果为失败的这一批id全部提取出来并且重新拆分进行查询。 这就需要用到分流，把查询成功的流">
+<meta property="og:type" content="article">
+<meta property="og:title" content="flink的sideout使用">
+<meta property="og:url" content="http://yoursite.com/2020/05/29/flink%E7%9A%84sideout%E4%BD%BF%E7%94%A8/index.html">
+<meta property="og:site_name" content="HK书屋">
+<meta property="og:description" content="最近遇到了一个使用了flink的Side Outputs的场景，这里记录一下。 需求的场景比较简单，从kafka接收用户的微信id去实时查询微信的接口获取用户的信息并写入数据库。接口是批量查询接口，可以一次传入多个id。因此有一个问题，如果一批id中有一个非法id，会导致同一批数据全部返回失败。这就需要把返回结果为失败的这一批id全部提取出来并且重新拆分进行查询。 这就需要用到分流，把查询成功的流">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2020-05-29T02:30:27.348Z">
+<meta property="article:modified_time" content="2020-05-29T05:52:27.344Z">
+<meta property="article:author" content="HH KKs">
+<meta name="twitter:card" content="summary">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Muse',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: 'Author'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2020/05/29/flink的sideout使用/"/>
+
+
+
+
+
+  <title>flink的sideout使用 | HK书屋</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.0"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="en">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">HK书屋</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-question-circle"></i> <br />
+            
+            Home
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-question-circle"></i> <br />
+            
+            About
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-question-circle"></i> <br />
+            
+            Tags
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-question-circle"></i> <br />
+            
+            Categories
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-question-circle"></i> <br />
+            
+            Archives
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/05/29/flink%E7%9A%84sideout%E4%BD%BF%E7%94%A8/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="HH KKs">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="HK书屋">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">flink的sideout使用</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">Posted on</span>
+              
+              <time title="Post created" itemprop="dateCreated datePublished" datetime="2020-05-29T10:30:27+08:00">
+                2020-05-29
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>最近遇到了一个使用了flink的<a href="https://ci.apache.org/projects/flink/flink-docs-release-1.10/dev/stream/side_output.html" target="_blank" rel="noopener">Side Outputs</a>的场景，这里记录一下。</p>
+<p>需求的场景比较简单，从kafka接收用户的微信id去实时查询微信的接口获取用户的信息并写入数据库。接口是批量查询接口，可以一次传入多个id。因此有一个问题，如果一批id中有一个非法id，会导致同一批数据全部返回失败。这就需要把返回结果为失败的这一批id全部提取出来并且重新拆分进行查询。</p>
+<p>这就需要用到分流，把查询成功的流输出到数据库，把查询失败的流输出到一个地方保存并重新解析。在flink中sideout(侧输出)就是解决这种问题的工具。</p>
+<p>sideoutput的输出类型可以与主流不同，可以有多个sideoutput，每个侧输出不同的类型。在使用侧输出的时候需要先定义一个OutputTag。定义方式，如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">OutputTag&lt;String&gt; outputTag &#x3D; newOutputTag&lt;String&gt;(&quot;side-output&quot;) &#123;&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>OutputTag有两个构造函数，只有一个id参数，或者包括两个参数，id以及TypeInformation 的信息。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">OutputTag(String id)</span><br><span class="line">OutputTag(String id, TypeInformation&lt;T&gt;typeInfo)</span><br></pre></td></tr></table></figure>
+
+<p>使用sideoutput需要在特定的函数里，通常是更底层的API如ProcessFunction里面，在这些函数里可以使用Context参数，这个参数在底层的API里是暴露给用户使用的。主要有以下几个API：</p>
+<ul>
+<li><a href="https://ci.apache.org/projects/flink/flink-docs-release-1.10/dev/stream/operators/process_function.html" target="_blank" rel="noopener">ProcessFunction</a></li>
+<li><a href="https://ci.apache.org/projects/flink/flink-docs-release-1.10/dev/stream/operators/process_function.html#the-keyedprocessfunction" target="_blank" rel="noopener">KeyedProcessFunction</a></li>
+<li>CoProcessFunction</li>
+<li>KeyedCoProcessFunction</li>
+<li><a href="https://ci.apache.org/projects/flink/flink-docs-release-1.10/dev/stream/operators/windows.html#processwindowfunction" target="_blank" rel="noopener">ProcessWindowFunction</a></li>
+<li>ProcessAllWindowFunction</li>
+</ul>
+<p>以下是部分代码示例：</p>
+<p>1，首先是flink主流程，需要先定义OutputTag的输出类型及id，然后把OutputTag传入具体需要使用分流的MAP函数中，最后直接从MAP函数处理得到的OutputStream中调用getSideOutput方法拿到sideOutPut的流，这里是把sideOutPut的流输出到一个文件中保存。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">private static void execute(StreamExecutionEnvironment env) &#123;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;从kafka接收用户微信id</span><br><span class="line">        DataStream&lt;String&gt; dataStream &#x3D;</span><br><span class="line">                KafkaSourceBuilder.buildKafkaStreamWithUid(env, KAFKA_SERVERS, GROUP_ID, KAFKA_TOPIC);</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;定义OutputTag</span><br><span class="line">        final OutputTag&lt;List&lt;Map&lt;String, String&gt;&gt;&gt; outputTag &#x3D; new OutputTag&lt;List&lt;Map&lt;String, String&gt;&gt;&gt;(&quot;side-output&quot;)&#123;&#125;;</span><br><span class="line"></span><br><span class="line">        SingleOutputStreamOperator&lt;Tuple2&lt;WeiXinUserDTO,Map&lt;String, String&gt;&gt;&gt; singleOutputStreamOperator &#x3D; dataStream</span><br><span class="line">                .filter(i -&gt; StringUtils.isNotBlank(i))</span><br><span class="line">                .map(new JsonMapFunction())</span><br><span class="line">                .filter(i -&gt; i !&#x3D; null)</span><br><span class="line">            .windowAll(TimeAndCountWindowAssigner.of(Time.seconds(5),100))</span><br><span class="line">                .aggregate(new ListAggregateFunction())</span><br><span class="line">                &#x2F;&#x2F;这里把outputTag传入HttpWXProcessFunction函数中</span><br><span class="line">                .process(new HttpWXProcessFunction(outputTag))；</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;正常的流输出到数据库</span><br><span class="line">        singleOutputStreamOperator</span><br><span class="line">                .addSink(new WxMysqlSink());</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;拿到SideOutput输出流</span><br><span class="line">        DataStream&lt;List&lt;Map&lt;String, String&gt;&gt;&gt; sideOutStream &#x3D; singleOutputStreamOperator.getSideOutput(outputTag);</span><br><span class="line">        </span><br><span class="line">        &#x2F;&#x2F;使用SideOutput输出流</span><br><span class="line">        sideOutStream</span><br><span class="line">                .addSink(new SideOutSink(&quot;&#x2F;app&#x2F;weixin&#x2F;&quot;,&quot;wexinId&quot;,&quot;yyyyMMdd&quot;))</span><br></pre></td></tr></table></figure>
+
+<p>2，接下来是ProcessFunction函数的执行过程，通过接口查询用户信息。如果成功则使用out.collect发送至下游，如果失败则通过Context将错误的id输出到sideoutput。即ctx.output(outputTag, value)</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">public class HttpWXProcessFunction extends ProcessFunction&lt;List&lt; String&gt; , WeiXinUserDTO&gt;</span><br><span class="line">&#123;</span><br><span class="line">    @Override</span><br><span class="line">    public void processElement(&lt;List&lt; String&gt;&gt; value, Context ctx, Collector&lt;WeiXinUserDTO&gt; out) throws Exception &#123;</span><br><span class="line">        </span><br><span class="line">        ......</span><br><span class="line">        tempList.put(&quot;user_list&quot;, value);</span><br><span class="line"></span><br><span class="line">       String result &#x3D; transHttpReqFacade.getHttpPostResult (&quot;https:&#x2F;&#x2F;api.weixin.qq.com&#x2F;cgi-bin&#x2F;user&#x2F;info&#x2F;batchget?access_token&#x3D;&quot; + accessToken, JSONObject.toJSONString(tempList));</span><br><span class="line">            </span><br><span class="line">            </span><br><span class="line">       WeiXinUserDTO weiXinUserDTO &#x3D; JSONObject.parseObject(result, WeiXinUserDTO.class);</span><br><span class="line">                </span><br><span class="line">       if (weiXinUserDTO.getUser_info_list().size() &gt; 0) &#123;</span><br><span class="line">           log.info(&quot;微信接口成功,tempList size为:&#123;&#125;&quot;, weiXinUserDTO .getUser_info_list().size());</span><br><span class="line">           &#x2F;&#x2F;成功则发送到下游</span><br><span class="line">           out.collect(new Tuple2(weiXinUserDTO, map));</span><br><span class="line">       &#125; else &#123;</span><br><span class="line">           log.error(&quot;微信获取接口的值失败为:&#123;&#125;,token值为:&#123;&#125;,tempList值为:&#123;&#125;&quot;, result, accessToken, JSONObject.toJSONString(tempList));</span><br><span class="line">           &#x2F;&#x2F;失败则输出到sideoutput</span><br><span class="line">           ctx.output(outputTag, value);</span><br><span class="line">      &#125;</span><br><span class="line">            </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>最后在运行过程中可以在指定的SideOutPut的输出路径下找到查询失败的id列表文件，重新处理操作就可以了。</p>
+<blockquote>
+<p> [:/app/weixin]$<br>wexinId.txt</p>
+</blockquote>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2020/05/28/Flink%E5%AE%A2%E6%88%B7%E7%AB%AF%E6%8F%90%E4%BA%A4%E6%B5%81%E7%A8%8B/" rel="next" title="Flink客户端提交流程">
+                <i class="fa fa-chevron-left"></i> Flink客户端提交流程
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+
+      <section class="site-overview-wrap sidebar-panel sidebar-panel-active">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">HH KKs</p>
+              <p class="site-description motion-element" itemprop="description"></p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">10</span>
+                  <span class="site-state-item-name">posts</span>
+                </a>
+              </div>
+            
+
+            
+
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">HH KKs</span>
+
+  
+</div>
+
+
+  <div class="powered-by">Powered by <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a></div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">Theme &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Muse</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
