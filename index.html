@@ -259,6 +259,176 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/06/04/flink%E7%9A%84Elasticsearch%E7%9A%84connector%E4%BD%BF%E7%94%A8/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="HH KKs">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="HK书屋">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2020/06/04/flink%E7%9A%84Elasticsearch%E7%9A%84connector%E4%BD%BF%E7%94%A8/" itemprop="url">flink的Elasticsearch的connector使用</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">Posted on</span>
+              
+              <time title="Post created" itemprop="dateCreated datePublished" datetime="2020-06-04T16:44:49+08:00">
+                2020-06-04
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h3 id="flink-connector-elasticsearch介绍"><a href="#flink-connector-elasticsearch介绍" class="headerlink" title="flink-connector-elasticsearch介绍"></a>flink-connector-elasticsearch介绍</h3><p>在实际应用中，一些明细数据需要存入Elasticsearch来供使用方快速的查询。而flink内部集成了Elasticsearch的connector可以直接使用封装的api。这里通过示例记录一下flink任务写入es的sink的方式。</p>
+<p><img src="/2020/06/04/flink%E7%9A%84Elasticsearch%E7%9A%84connector%E4%BD%BF%E7%94%A8/2.png" alt></p>
+<p>可以看到flink支持es的各种版本，从2.x到7.x。然后高版本是可以兼容低版本的写入的。代码方面主要分成了5个module: flink-connector-elasticsearch2，flink-connector-elasticsearch5，flink-connector-elasticsearch6，flink-connector-elasticsearch7，flink-connector-elasticsearch-base。其中flink-connector-elasticsearch-base定义了通用的接口，其他module为不同版本的实现。</p>
+<p><img src="/2020/06/04/flink%E7%9A%84Elasticsearch%E7%9A%84connector%E4%BD%BF%E7%94%A8/3.png" alt></p>
+<p>上图是主要的代码结构，flink-connector-elasticsearch7与flink-connector-elasticsearch6的结构基本一致。可以看到flink-connector-elasticsearch6之后做了很多调整，封装也更加完善。下面主要看一下</p>
+<p>flink-connector-elasticsearch的使用。</p>
+<p>这里演示两种方式，一种是使用ElasticsearchSink API，这种方式需要自己实现ElasticsearchSinkFunction接口进行增删改。另一种方式是使用flink-connector-elasticsearch自己封装的ElasticsearchUpsertTableSink，这种使用方式比较简单，直接传入es集群的相关参数就可以了。传参的方式一种是使用 descriptor API，也就是 org.apache.flink.table.descriptors.Elasticsearch，通过tableApi进行connect。或者通过DDL直接定义。</p>
+<h3 id="ElasticsearchSink"><a href="#ElasticsearchSink" class="headerlink" title="ElasticsearchSink"></a>ElasticsearchSink</h3><p>先看下ElasticsearchSink 的实现，分别比较一下5.x和6.x和7.x。</p>
+<h4 id="ElasticsearchSink-5-x"><a href="#ElasticsearchSink-5-x" class="headerlink" title="ElasticsearchSink 5.x"></a>ElasticsearchSink 5.x</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">Properties properties &#x3D; new Properties();</span><br><span class="line">properties.setProperty(&quot;bootstrap.servers&quot;, KAFKA_SERVERS);</span><br><span class="line">properties.setProperty(&quot;group.id&quot;, GROUP_ID);</span><br><span class="line">FlinkKafkaConsumer011&lt;String&gt; depponConsumer &#x3D; new FlinkKafkaConsumer011&lt;&gt;(KAFKA_TOPIC, new ExchangeDeserializer(), properties);</span><br><span class="line"></span><br><span class="line">DataStream&lt;String&gt; dataStream &#x3D; env.addSource(depponConsumer)</span><br><span class="line">DataStream&lt;FmsNetTob&gt; smsNetTobStream &#x3D; dataStream</span><br><span class="line">        .map(new DataMapFunction())</span><br><span class="line">        .addSink(buildEalsticSink());</span><br></pre></td></tr></table></figure>
+
+<p>从kafka读取消息并进行清洗，然后写入es。看下buildEalsticSink方法</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">ElasticsearchSink&lt;FmsNetTob&gt; buildEalsticSink() &#123;</span><br><span class="line">    Map&lt;String, String&gt; userConfig &#x3D; ElasticsearchConfigHelper.loadYmalConfig(&quot;elasticsearch.yml&quot;);</span><br><span class="line">    &#x2F;&#x2F; ES客户端封装</span><br><span class="line">    ElasticsearchApiCallBridge&lt;TransportClient&gt; bridge &#x3D; new Elasticsearch5ApiCallBridge(ElasticsearchConfigHelper.getCluster(Constants.ELASTIC_SERVERS));</span><br><span class="line">     </span><br><span class="line">    &#x2F;&#x2F;重试策略</span><br><span class="line">    ActionRequestFailureHandler failureHandler &#x3D; new NoOpFailureHandler();</span><br><span class="line">    if(Constants.ELASTIC_FAILHANDLER) &#123;</span><br><span class="line">        failureHandler &#x3D; new RetryRejectedExecutionFailureHandler();</span><br><span class="line">    &#125;</span><br><span class="line">    &#x2F;&#x2F;es</span><br><span class="line">    ElasticsearchSinkFunction&lt;FmsNetTob&gt; elasticSinkFunction &#x3D; new DepponSinkFunction(Constants.INDEX_NAME, Constants.INDEX_TYPE);</span><br><span class="line">    </span><br><span class="line">    ElasticsearchSink&lt;FmsNetTob&gt; elasticSink &#x3D; new ElasticsearchSink&lt;FmsNetTob&gt;(bridge, userConfig, elasticSinkFunction, failureHandler);</span><br><span class="line">    </span><br><span class="line">    return elasticSink;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>ElasticsearchSink需要自定义Elasticsearch5ApiCallBridge，ElasticsearchSinkFunction，ActionRequestFailureHandler等类并传入ElasticsearchSink的构造函数。看下ElasticsearchSinkFunction的实现。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">public class DepponSinkFunction implements ElasticsearchSinkFunction&lt;FmsNetTob&gt; &#123;</span><br><span class="line">    &#x2F;&#x2F;索引名</span><br><span class="line">    private String index;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;type名</span><br><span class="line">    private String type;</span><br><span class="line"></span><br><span class="line">    public DepponSinkFunction(String index, String type) &#123;</span><br><span class="line">        this.index &#x3D; index;</span><br><span class="line">        this.type &#x3D; type;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    @Override</span><br><span class="line">    public void process(FmsNetTob source, RuntimeContext context, RequestIndexer indexer) &#123;</span><br><span class="line">        indexer.add(indexRequest(source));</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public IndexRequest indexRequest(FmsNetTob source) &#123;</span><br><span class="line">        JSONObject jsonSource &#x3D; (JSONObject) JSON.toJSON(source);</span><br><span class="line">        IndexRequest indexRequest &#x3D; Requests.indexRequest().index(index).type(type).source(jsonSource.toJSONString(), XContentType.JSON);</span><br><span class="line">        return indexRequest;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>实现ElasticsearchSinkFunction接口的process方法实现es写入，es以id去重，插入时不指定id会随机生成一个id。插入结果如下：</p>
+<p><img src="/2020/06/04/flink%E7%9A%84Elasticsearch%E7%9A%84connector%E4%BD%BF%E7%94%A8/1.png" alt></p>
+<h4 id="ElasticsearchSink-6-x"><a href="#ElasticsearchSink-6-x" class="headerlink" title="ElasticsearchSink 6.x"></a>ElasticsearchSink 6.x</h4><p>使用相同的pipeline流程：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">Properties properties &#x3D; new Properties();</span><br><span class="line">properties.setProperty(&quot;bootstrap.servers&quot;, KAFKA_SERVERS);</span><br><span class="line">properties.setProperty(&quot;group.id&quot;, GROUP_ID);</span><br><span class="line">FlinkKafkaConsumer011&lt;String&gt; depponConsumer &#x3D; new FlinkKafkaConsumer011&lt;&gt;(KAFKA_TOPIC, new ExchangeDeserializer(), properties);</span><br><span class="line"></span><br><span class="line">DataStream&lt;String&gt; dataStream &#x3D; env.addSource(depponConsumer)</span><br><span class="line">DataStream&lt;FmsNetTob&gt; smsNetTobStream &#x3D; dataStream</span><br><span class="line">        .map(new DataMapFunction())</span><br><span class="line">        .addSink(buildEalsticSink());</span><br></pre></td></tr></table></figure>
+
+<p>区别主要在buildEalsticSink过程：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">ElasticsearchSink&lt;FmsNetTob&gt; buildEalsticSink() &#123;</span><br><span class="line">    List&lt;HttpHost&gt; httpHosts &#x3D; new ArrayList&lt;&gt;();</span><br><span class="line">    httpHosts.add(new HttpHost(&quot;10.xxx.xxx.xxx&quot;, 9200, &quot;http&quot;));</span><br><span class="line">    httpHosts.add(new HttpHost(&quot;10.xxx.xxx.xxx&quot;, 9200, &quot;http&quot;));</span><br><span class="line">    httpHosts.add(new HttpHost(&quot;10.xxx.xxx.xxx&quot;, 9200, &quot;http&quot;));</span><br><span class="line"></span><br><span class="line">    ElasticsearchSink.Builder&lt;FmsNetTob&gt; esSinkBuilder &#x3D; new ElasticsearchSink.Builder&lt;FmsNetTob&gt;(</span><br><span class="line">            httpHosts, new DepponEsfunction(&quot;fms_net_tob&quot;, &quot;fms_net_tob_balance&quot;));</span><br><span class="line"></span><br><span class="line">    esSinkBuilder.setBulkFlushMaxActions(Constants.ELASTIC_BULK_FLUSH_MAX_ACTIONS);</span><br><span class="line">    esSinkBuilder.setBulkFlushInterval(Constants.ELASTIC_BULK_FLUSH_INTERVAL_MS);</span><br><span class="line">    esSinkBuilder.setBulkFlushMaxSizeMb(Constants.ELASTIC_BULK_FLUSH_MAX_SIZE_MB);</span><br><span class="line"></span><br><span class="line">    ActionRequestFailureHandler failureHandler;</span><br><span class="line">    if(Constants.ELASTIC_BULK_FLUSH_BACKOFF_ENABLE) &#123;</span><br><span class="line">        failureHandler &#x3D; new RetryRejectedExecutionFailureHandler();</span><br><span class="line">        esSinkBuilder.setBulkFlushBackoff(true);</span><br><span class="line">        esSinkBuilder.setFailureHandler(failureHandler);</span><br><span class="line">        esSinkBuilder.setBulkFlushBackoffDelay(Constants.ELASTIC_BULK_FLUSH_BACKOFF_DELAY);</span><br><span class="line">        esSinkBuilder.setBulkFlushBackoffRetries(Constants.ELASTIC_BULK_FLUSH_BACKOFF_RETRIES);</span><br><span class="line">        esSinkBuilder.setBulkFlushBackoffType(ElasticsearchSinkBase.FlushBackoffType.CONSTANT);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    return esSinkBuilder.build();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>ElasticsearchSink 6.x增加了Builder构造器，并且将Elasticsearch6ApiCallBridge批处理封装进了ElasticsearchSink内部。构造时只需添加set进需要的参数就可以。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">private ElasticsearchSink(</span><br><span class="line">   Map&lt;String, String&gt; bulkRequestsConfig,</span><br><span class="line">   List&lt;HttpHost&gt; httpHosts,</span><br><span class="line">   ElasticsearchSinkFunction&lt;T&gt; elasticsearchSinkFunction,</span><br><span class="line">   ActionRequestFailureHandler failureHandler,</span><br><span class="line">   RestClientFactory restClientFactory) &#123;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;Elasticsearch6ApiCallBridge在初始化ElasticsearchSink时被内部初始化</span><br><span class="line">   super(new Elasticsearch6ApiCallBridge在初始化(httpHosts, restClientFactory),  bulkRequestsConfig, elasticsearchSinkFunction, failureHandler);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>ElasticsearchSinkBase类的一些初始化和invoke方法，ElasticsearchSinkBase实现了RichSinkFunction和CheckpointedFunction</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line">@Override</span><br><span class="line">public void open(Configuration parameters) throws Exception &#123;</span><br><span class="line">   client &#x3D; callBridge.createClient(userConfig);</span><br><span class="line">   &#x2F;&#x2F;构造批处理类</span><br><span class="line">   bulkProcessor &#x3D; buildBulkProcessor(new BulkProcessorListener());</span><br><span class="line">   requestIndexer &#x3D; callBridge.createBulkProcessorIndexer(bulkProcessor, flushOnCheckpoint, numPendingRequests);</span><br><span class="line">   failureRequestIndexer &#x3D; new BufferingNoOpRequestIndexer();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">@Override</span><br><span class="line">public void invoke(T value, Context context) throws Exception &#123;</span><br><span class="line">   checkAsyncErrorsAndRequests();</span><br><span class="line">   &#x2F;&#x2F;调用elasticsearchSinkFunction的具体process</span><br><span class="line">   elasticsearchSinkFunction.process(value, getRuntimeContext(), requestIndexer);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">@Override</span><br><span class="line">public void initializeState(FunctionInitializationContext context) throws Exception &#123;</span><br><span class="line">   &#x2F;&#x2F; no initialization needed</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">@Override</span><br><span class="line">public void snapshotState(FunctionSnapshotContext context) throws Exception &#123;</span><br><span class="line">   checkAsyncErrorsAndRequests();</span><br><span class="line">&#x2F;&#x2F;checkpoint的时候把批处理的数据刷进es</span><br><span class="line">   if (flushOnCheckpoint) &#123;</span><br><span class="line">      while (numPendingRequests.get() !&#x3D; 0) &#123;</span><br><span class="line">         bulkProcessor.flush();</span><br><span class="line">         checkAsyncErrorsAndRequests();</span><br><span class="line">      &#125;</span><br><span class="line">   &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>ElasticsearchSinkFunction的实现与5.x基本一致。不再重述。</p>
+<h4 id="ElasticsearchSink-7-x"><a href="#ElasticsearchSink-7-x" class="headerlink" title="ElasticsearchSink 7.x"></a>ElasticsearchSink 7.x</h4><p>ElasticsearchSink 7.x与6.x的使用是基本一致的，唯一的区别是ElasticsearchSink 7.x废弃了插入时的type参数，直接指定id进行插入和更新。</p>
+<h3 id="descriptor-API"><a href="#descriptor-API" class="headerlink" title="descriptor API"></a>descriptor API</h3><p>ElasticsearchSink 6.x之后提供了ElasticsearchUpsertTableSink的封装，可以传入参数就可以实现es的插入和更新，无需再实现ElasticsearchSinkFunction。descriptor API的用法是通过tableApi来connect org.apache.flink.table.descriptors.Elasticsearch类，如下是一个示例，这里使用了flink的1.10的版本，废弃了registerTableSink\Source改用createTemporaryTable，废弃了deriveScheme方法等,zookeeper.connect也为必填参数</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br></pre></td><td class="code"><pre><span class="line">public static void main(String[] args) throws Exception &#123;</span><br><span class="line">    StreamExecutionEnvironment env &#x3D; StreamExecutionEnvironment.getExecutionEnvironment();</span><br><span class="line">    env.setParallelism(1);</span><br><span class="line">    StreamTableEnvironment tableEnv &#x3D; StreamTableEnvironment.create(env);</span><br><span class="line"></span><br><span class="line">    Schema schema &#x3D; new Schema()</span><br><span class="line">            .field(&quot;busyId&quot;, DataTypes.STRING())</span><br><span class="line">            .field(&quot;account&quot;, DataTypes.STRING())</span><br><span class="line">            .field(&quot;userMobile&quot;, DataTypes.STRING())</span><br><span class="line">            .field(&quot;expressCompanyName&quot;, DataTypes.STRING())</span><br><span class="line">            .field(&quot;expressCompanyCode&quot;, DataTypes.STRING())</span><br><span class="line">            .field(&quot;busyType&quot;, DataTypes.INT())</span><br><span class="line">            .field(&quot;gainMoney&quot;, DataTypes.DOUBLE())</span><br><span class="line">            .field(&quot;netInbillMoney&quot;, DataTypes.DOUBLE())</span><br><span class="line">            .field(&quot;inbillMoney&quot;, DataTypes.DOUBLE())</span><br><span class="line">            .field(&quot;payType&quot;, DataTypes.STRING())</span><br><span class="line">            .field(&quot;payTm&quot;, DataTypes.BIGINT())</span><br><span class="line">            .field(&quot;paySerialNumber&quot;, DataTypes.STRING())</span><br><span class="line">            .field(&quot;remark&quot;, DataTypes.STRING())</span><br><span class="line">            .field(&quot;userUicId&quot;, DataTypes.BIGINT())</span><br><span class="line">            .field(&quot;province&quot;, DataTypes.STRING())</span><br><span class="line">            .field(&quot;city&quot;, DataTypes.STRING())</span><br><span class="line">            .field(&quot;district&quot;, DataTypes.STRING())</span><br><span class="line">            .field(&quot;postId&quot;, DataTypes.STRING())</span><br><span class="line">            .field(&quot;edCode&quot;, DataTypes.STRING())</span><br><span class="line">            .field(&quot;throwAddress&quot;, DataTypes.STRING())</span><br><span class="line">            .field(&quot;expressId&quot;, DataTypes.STRING())</span><br><span class="line">            .field(&quot;boxType&quot;, DataTypes.INT())</span><br><span class="line">            .field(&quot;isRefund&quot;, DataTypes.INT())</span><br><span class="line">            .field(&quot;serviceName&quot;, DataTypes.STRING());</span><br><span class="line"></span><br><span class="line">    tableEnv.connect(</span><br><span class="line">            new Kafka()</span><br><span class="line">                    .topic(&quot;testtest1&quot;)</span><br><span class="line">                    .property(&quot;bootstrap.servers&quot;, &quot;10.xxx.xxx.xxx:9092,10.xxx.xxx.xxx:9092,10.xxx.xxx.xxx:9092&quot;)</span><br><span class="line">                    .property(&quot;group.id&quot;, &quot;test&quot;)</span><br><span class="line">                    .property(&quot;zookeeper.connect&quot;,&quot;10.xxx.xxx.xxx:2181,10.xxx.xxx.xxx:2181&quot;)</span><br><span class="line">                    .startFromLatest()</span><br><span class="line">                    .version(&quot;0.11&quot;)</span><br><span class="line">            )</span><br><span class="line">            .withSchema(schema)</span><br><span class="line">            .withFormat(new Json())</span><br><span class="line">            .createTemporaryTable(&quot;Users&quot;);</span><br><span class="line"></span><br><span class="line">    Table table &#x3D; tableEnv.from(&quot;Users&quot;);</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F; print</span><br><span class="line">    tableEnv.toAppendStream(table, TypeInformation.of(Row.class)).print();</span><br><span class="line"></span><br><span class="line">    tableEnv.connect(</span><br><span class="line">            new Elasticsearch()</span><br><span class="line">                    .version(&quot;6&quot;)</span><br><span class="line">                    .host(&quot;10.xxx.xxx.xxx&quot;, 9200, &quot;http&quot;)</span><br><span class="line">                    .index(&quot;fms_net_tob&quot;)</span><br><span class="line">                    &#x2F;&#x2F;文档</span><br><span class="line">                    .documentType(&quot;fms_net_tob_balance&quot;)</span><br><span class="line">                    &#x2F;&#x2F; key之间的分隔符，默认&quot;#&quot;</span><br><span class="line">                    .keyDelimiter(&quot;#&quot;)</span><br><span class="line">                    &#x2F;&#x2F; 如果key为null，则用&quot;&quot;字符串替代</span><br><span class="line">                    .keyNullLiteral(&quot;&quot;)</span><br><span class="line">                    &#x2F;&#x2F; 失败处理策略，Fail（报错，job失败），Ignore(失败)，RetryRejected（重试），Custom（自己定义）</span><br><span class="line">                    .failureHandlerIgnore()</span><br><span class="line">                    &#x2F;&#x2F; 关闭flush检测</span><br><span class="line">                    .disableFlushOnCheckpoint()</span><br><span class="line">                    &#x2F;&#x2F; 为每个批量请求设置要缓冲的最大操作数</span><br><span class="line">                    .bulkFlushMaxActions(5)</span><br><span class="line">                    &#x2F;&#x2F; 每个批量请求的缓冲最大值，目前仅支持 MB</span><br><span class="line">                    .bulkFlushMaxSize(&quot;5 MB&quot;)</span><br><span class="line">                    &#x2F;&#x2F; 每个批量请求间隔时间</span><br><span class="line">                    .bulkFlushInterval(1000L)</span><br><span class="line">                    &#x2F;&#x2F; 设置刷新批量请求时要使用的常量回退类型</span><br><span class="line">                    .bulkFlushBackoffConstant()</span><br><span class="line">                    &#x2F;&#x2F; 设置刷新批量请求时每次回退尝试之间的延迟量（毫秒）</span><br><span class="line">                    .bulkFlushBackoffDelay(30000L)</span><br><span class="line">                    &#x2F;&#x2F; 设置刷新批量请求时回退尝试的最大重试次数。</span><br><span class="line">                    .bulkFlushBackoffMaxRetries(3)</span><br><span class="line">            )</span><br><span class="line">            .withSchema(schema)</span><br><span class="line">            .withFormat(new Json())</span><br><span class="line">            &#x2F;&#x2F;可以选择是append还是upsert</span><br><span class="line">            .inUpsertMode()</span><br><span class="line">            .createTemporaryTable(&quot;elsearch&quot;);</span><br><span class="line"></span><br><span class="line">    table.insertInto(&quot;elsearch&quot;);</span><br><span class="line">    env.execute(&quot;SqlSinkElasticSearchStream&quot;);</span><br><span class="line">&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>已上便实现了已table的形式插入es。DDL的方式类似，将Elasticsearch参数设置的过程转移到CREATE TABLE 的WITH参数下。运行程序可以看到插入的效果。</p>
+<p><img src="/2020/06/04/flink%E7%9A%84Elasticsearch%E7%9A%84connector%E4%BD%BF%E7%94%A8/1.png" alt></p>
+<p><img src="/2020/06/04/flink%E7%9A%84Elasticsearch%E7%9A%84connector%E4%BD%BF%E7%94%A8/4.png" alt></p>
+<p>据官方文档描述sql语句可以通过 SELECT a, b, c FROM t GROUP BY a, b 的方式指定a和b为id，即a#b。</p>
+<p>修改sqlQuery为下面这样，则自动根据payTm,paySerialNumber的顺序生成id：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Table table &#x3D; tableEnv.sqlQuery(&quot;select sum(busyType) as busyType, payTm,paySerialNumber from Users GROUP BY payTm,paySerialNumber&quot;);</span><br></pre></td></tr></table></figure>
+
+<p>发送消息如下：</p>
+<blockquote>
+<p>{“paySerialNumber”:”PFC0105434202006021516032687707”,”payTm”:1591082163641,”busyType”:2}</p>
+</blockquote>
+<p>则插入结果如下：</p>
+<p><img src="/2020/06/04/flink%E7%9A%84Elasticsearch%E7%9A%84connector%E4%BD%BF%E7%94%A8/5.png" alt></p>
+<p>id即为payTm#paySerialNumber</p>
+<p>再次发送消息，busyType被更新成了4：</p>
+<p><img src="/2020/06/04/flink%E7%9A%84Elasticsearch%E7%9A%84connector%E4%BD%BF%E7%94%A8/6.png" alt></p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/05/29/flink%E7%9A%84sideout%E4%BD%BF%E7%94%A8/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1743,141 +1913,13 @@ Configs for topic &#39;_schemas&#39; are cleanup.policy=compact</code></p>
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/03/23/hello-world/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="HH KKs">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/avatar.gif">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="HK书屋">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2020/03/23/hello-world/" itemprop="url">Hello World</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">Posted on</span>
-              
-              <time title="Post created" itemprop="dateCreated datePublished" datetime="2020-03-23T10:47:13+08:00">
-                2020-03-23
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>Welcome to <a href="https://hexo.io/" target="_blank" rel="noopener">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/" target="_blank" rel="noopener">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html" target="_blank" rel="noopener">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues" target="_blank" rel="noopener">GitHub</a>.</p>
-<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new <span class="string">"My New Post"</span></span><br></pre></td></tr></table></figure>
-
-<p>More info: <a href="https://hexo.io/docs/writing.html" target="_blank" rel="noopener">Writing</a></p>
-<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a href="https://hexo.io/docs/server.html" target="_blank" rel="noopener">Server</a></p>
-<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a href="https://hexo.io/docs/generating.html" target="_blank" rel="noopener">Generating</a></p>
-<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a href="https://hexo.io/docs/one-command-deployment.html" target="_blank" rel="noopener">Deployment</a></p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
+  <nav class="pagination">
+    <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="extend next" rel="next" href="/page/2/">&lt;i class&#x3D;&quot;fa fa-angle-right&quot;&gt;&lt;&#x2F;i&gt;</a>
+  </nav>
+
 
 
           </div>
@@ -1921,7 +1963,7 @@ Configs for topic &#39;_schemas&#39; are cleanup.policy=compact</code></p>
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">10</span>
+                  <span class="site-state-item-count">11</span>
                   <span class="site-state-item-name">posts</span>
                 </a>
               </div>
