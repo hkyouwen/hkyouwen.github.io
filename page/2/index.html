@@ -259,6 +259,151 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/03/23/TwoPhaseCommitSinkFunction/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="HH KKs">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="HK书屋">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2020/03/23/TwoPhaseCommitSinkFunction/" itemprop="url">TwoPhaseCommitSinkFunction</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">Posted on</span>
+              
+              <time title="Post created" itemprop="dateCreated datePublished" datetime="2020-03-23T16:16:01+08:00">
+                2020-03-23
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <figure class="highlight css"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="selector-tag">title</span>: <span class="selector-tag">TwoPhaseCommitSinkFunction</span></span><br><span class="line"><span class="selector-tag">date</span>: 2020<span class="selector-tag">-3-28</span> 18<span class="selector-pseudo">:00</span><span class="selector-pseudo">:00</span></span><br><span class="line"><span class="selector-tag">tags</span>:</span><br><span class="line"> <span class="selector-tag">-</span> <span class="selector-tag">flink</span></span><br><span class="line"> <span class="selector-tag">-</span> 源码</span><br><span class="line"><span class="selector-tag">categories</span>: "<span class="selector-tag">flink</span>"</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">@PublicEvolving</span><br><span class="line">public abstract class TwoPhaseCommitSinkFunction&lt;IN, TXN, CONTEXT&gt;</span><br><span class="line">		extends RichSinkFunction&lt;IN&gt;</span><br><span class="line">		implements CheckpointedFunction, CheckpointListener &#123;</span><br></pre></td></tr></table></figure>
+
+<p>​    TwoPhaseCommitSinkFunction是flink用来实现exactly-once语义的sink，继承了产生检查点的CheckpointedFunction以及检查点通知的CheckpointListener。</p>
+<p>主要函数：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line">@Override</span><br><span class="line">	public void initializeState(FunctionInitializationContext context) throws Exception &#123;</span><br><span class="line"></span><br><span class="line">		state &#x3D; context.getOperatorStateStore().getListState(stateDescriptor);</span><br><span class="line"></span><br><span class="line">		if (context.isRestored()) &#123;</span><br><span class="line">			LOG.info(&quot;&#123;&#125; - restoring state&quot;, name());</span><br><span class="line"></span><br><span class="line">			for (State&lt;TXN, CONTEXT&gt; operatorState : state.get()) &#123;</span><br><span class="line">				userContext &#x3D; operatorState.getContext();</span><br><span class="line">				List&lt;TransactionHolder&lt;TXN&gt;&gt; recoveredTransactions &#x3D; operatorState.getPendingCommitTransactions();</span><br><span class="line">				for (TransactionHolder&lt;TXN&gt; recoveredTransaction : recoveredTransactions) &#123;</span><br><span class="line">					&#x2F;&#x2F; If this fails to succeed eventually, there is actually data loss</span><br><span class="line">					recoverAndCommitInternal(recoveredTransaction);</span><br><span class="line">					LOG.info(&quot;&#123;&#125; committed recovered transaction &#123;&#125;&quot;, name(), recoveredTransaction);</span><br><span class="line">				&#125;</span><br><span class="line"></span><br><span class="line">				recoverAndAbort(operatorState.getPendingTransaction().handle);</span><br><span class="line">				LOG.info(&quot;&#123;&#125; aborted recovered transaction &#123;&#125;&quot;, name(), operatorState.getPendingTransaction());</span><br><span class="line"></span><br><span class="line">				if (userContext.isPresent()) &#123;</span><br><span class="line">					finishRecoveringContext();</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">		&#x2F;&#x2F; if in restore we didn&#39;t get any userContext or we are initializing from scratch</span><br><span class="line">		if (userContext &#x3D;&#x3D; null) &#123;</span><br><span class="line">			LOG.info(&quot;&#123;&#125; - no state to restore&quot;, name());</span><br><span class="line"></span><br><span class="line">			userContext &#x3D; initializeUserContext();</span><br><span class="line">		&#125;</span><br><span class="line">		this.pendingCommitTransactions.clear();</span><br><span class="line"></span><br><span class="line">		currentTransactionHolder &#x3D; beginTransactionInternal();</span><br><span class="line">		LOG.debug(&quot;&#123;&#125; - started new transaction &#39;&#123;&#125;&#39;&quot;, name(), currentTransactionHolder);</span><br><span class="line">	&#125;</span><br></pre></td></tr></table></figure>
+
+<p>​    启动时恢复至上一个检查点的状态，recoverAndCommitInternal重新提交pre-commit的事务，<strong>这里提交失败会重启任务，最终失败会造成数据丢失</strong>。recoverAndAbort重新删除已经提交但因为中断未删除的事务。并通过beginTransactionInternal开启新一轮事务。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">private void recoverAndCommitInternal(TransactionHolder&lt;TXN&gt; transactionHolder) &#123;</span><br><span class="line">		try &#123;</span><br><span class="line">			logWarningIfTimeoutAlmostReached(transactionHolder);</span><br><span class="line">			recoverAndCommit(transactionHolder.handle);</span><br><span class="line">		&#125; catch (final Exception e) &#123;</span><br><span class="line">			final long elapsedTime &#x3D; clock.millis() - transactionHolder.transactionStartTime;</span><br><span class="line">			if (ignoreFailuresAfterTransactionTimeout &amp;&amp; elapsedTime &gt; transactionTimeout) &#123;</span><br><span class="line">				LOG.error(&quot;Error while committing transaction &#123;&#125;. &quot; +</span><br><span class="line">						&quot;Transaction has been open for longer than the transaction timeout (&#123;&#125;).&quot; +</span><br><span class="line">						&quot;Commit will not be attempted again. Data loss might have occurred.&quot;,</span><br><span class="line">					transactionHolder.handle, transactionTimeout, e);</span><br><span class="line">			&#125; else &#123;</span><br><span class="line">				throw e;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br></pre></td></tr></table></figure>
+
+<p>​    使用recoverAndCommit再次提交，提交异常时，判断事务是否超时，若超时则此次提交失败，否则抛出异常。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">protected void recoverAndCommit(TXN transaction) &#123;</span><br><span class="line">		commit(transaction);</span><br><span class="line">	&#125;</span><br><span class="line">	</span><br><span class="line">protected void recoverAndAbort(TXN transaction) &#123;</span><br><span class="line">		abort(transaction);</span><br><span class="line">	&#125;</span><br><span class="line">	</span><br><span class="line">private TransactionHolder&lt;TXN&gt; beginTransactionInternal() throws Exception &#123;</span><br><span class="line">		return new TransactionHolder&lt;&gt;(beginTransaction(), clock.millis());</span><br><span class="line">	&#125;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">@Override</span><br><span class="line">	public void snapshotState(FunctionSnapshotContext context) throws Exception &#123;</span><br><span class="line">		&#x2F;&#x2F; this is like the pre-commit of a 2-phase-commit transaction</span><br><span class="line">		&#x2F;&#x2F; we are ready to commit and remember the transaction</span><br><span class="line"></span><br><span class="line">		checkState(currentTransactionHolder !&#x3D; null, &quot;bug: no transaction object when performing state snapshot&quot;);</span><br><span class="line"></span><br><span class="line">		long checkpointId &#x3D; context.getCheckpointId();</span><br><span class="line">		LOG.debug(&quot;&#123;&#125; - checkpoint &#123;&#125; triggered, flushing transaction &#39;&#123;&#125;&#39;&quot;, name(), context.getCheckpointId(), currentTransactionHolder);</span><br><span class="line"></span><br><span class="line">		preCommit(currentTransactionHolder.handle);</span><br><span class="line">		pendingCommitTransactions.put(checkpointId, currentTransactionHolder);</span><br><span class="line">		LOG.debug(&quot;&#123;&#125; - stored pending transactions &#123;&#125;&quot;, name(), pendingCommitTransactions);</span><br><span class="line"></span><br><span class="line">		currentTransactionHolder &#x3D; beginTransactionInternal();</span><br><span class="line">		LOG.debug(&quot;&#123;&#125; - started new transaction &#39;&#123;&#125;&#39;&quot;, name(), currentTransactionHolder);</span><br><span class="line"></span><br><span class="line">		state.clear();</span><br><span class="line">		state.add(new State&lt;&gt;(</span><br><span class="line">			this.currentTransactionHolder,</span><br><span class="line">			new ArrayList&lt;&gt;(pendingCommitTransactions.values()),</span><br><span class="line">			userContext));</span><br><span class="line">	&#125;</span><br></pre></td></tr></table></figure>
+
+<p>​    snapshotState函数实现自CheckpointedFunction，用于产生checkpoint，这一步生成barrier，并调用preCommit产生一个预提交的事务，存入pendingCommitTransactions并终止当前数据处理。 调用beginTransactionInternal重新开启新一轮事务并继续下一轮处理。checkpoint更新state用于中断后恢复数据。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br></pre></td><td class="code"><pre><span class="line">@Override</span><br><span class="line">	public final void notifyCheckpointComplete(long checkpointId) throws Exception &#123;</span><br><span class="line">		&#x2F;&#x2F; the following scenarios are possible here</span><br><span class="line">		&#x2F;&#x2F;</span><br><span class="line">		&#x2F;&#x2F;  (1) there is exactly one transaction from the latest checkpoint that</span><br><span class="line">		&#x2F;&#x2F;      was triggered and completed. That should be the common case.</span><br><span class="line">		&#x2F;&#x2F;      Simply commit that transaction in that case.</span><br><span class="line">		&#x2F;&#x2F;</span><br><span class="line">		&#x2F;&#x2F;  (2) there are multiple pending transactions because one previous</span><br><span class="line">		&#x2F;&#x2F;      checkpoint was skipped. That is a rare case, but can happen</span><br><span class="line">		&#x2F;&#x2F;      for example when:</span><br><span class="line">		&#x2F;&#x2F;</span><br><span class="line">		&#x2F;&#x2F;        - the master cannot persist the metadata of the last</span><br><span class="line">		&#x2F;&#x2F;          checkpoint (temporary outage in the storage system) but</span><br><span class="line">		&#x2F;&#x2F;          could persist a successive checkpoint (the one notified here)</span><br><span class="line">		&#x2F;&#x2F;</span><br><span class="line">		&#x2F;&#x2F;        - other tasks could not persist their status during</span><br><span class="line">		&#x2F;&#x2F;          the previous checkpoint, but did not trigger a failure because they</span><br><span class="line">		&#x2F;&#x2F;          could hold onto their state and could successfully persist it in</span><br><span class="line">		&#x2F;&#x2F;          a successive checkpoint (the one notified here)</span><br><span class="line">		&#x2F;&#x2F;</span><br><span class="line">		&#x2F;&#x2F;      In both cases, the prior checkpoint never reach a committed state, but</span><br><span class="line">		&#x2F;&#x2F;      this checkpoint is always expected to subsume the prior one and cover all</span><br><span class="line">		&#x2F;&#x2F;      changes since the last successful one. As a consequence, we need to commit</span><br><span class="line">		&#x2F;&#x2F;      all pending transactions.</span><br><span class="line">		&#x2F;&#x2F;</span><br><span class="line">		&#x2F;&#x2F;  (3) Multiple transactions are pending, but the checkpoint complete notification</span><br><span class="line">		&#x2F;&#x2F;      relates not to the latest. That is possible, because notification messages</span><br><span class="line">		&#x2F;&#x2F;      can be delayed (in an extreme case till arrive after a succeeding checkpoint</span><br><span class="line">		&#x2F;&#x2F;      was triggered) and because there can be concurrent overlapping checkpoints</span><br><span class="line">		&#x2F;&#x2F;      (a new one is started before the previous fully finished).</span><br><span class="line">		&#x2F;&#x2F;</span><br><span class="line">		&#x2F;&#x2F; &#x3D;&#x3D;&gt; There should never be a case where we have no pending transaction here</span><br><span class="line">		&#x2F;&#x2F;</span><br><span class="line"></span><br><span class="line">		Iterator&lt;Map.Entry&lt;Long, TransactionHolder&lt;TXN&gt;&gt;&gt; pendingTransactionIterator &#x3D; pendingCommitTransactions.entrySet().iterator();</span><br><span class="line">		checkState(pendingTransactionIterator.hasNext(), &quot;checkpoint completed, but no transaction pending&quot;);</span><br><span class="line"></span><br><span class="line">		while (pendingTransactionIterator.hasNext()) &#123;</span><br><span class="line">			Map.Entry&lt;Long, TransactionHolder&lt;TXN&gt;&gt; entry &#x3D; pendingTransactionIterator.next();</span><br><span class="line">			Long pendingTransactionCheckpointId &#x3D; entry.getKey();</span><br><span class="line">			TransactionHolder&lt;TXN&gt; pendingTransaction &#x3D; entry.getValue();</span><br><span class="line">			if (pendingTransactionCheckpointId &gt; checkpointId) &#123;</span><br><span class="line">				continue;</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			LOG.info(&quot;&#123;&#125; - checkpoint &#123;&#125; complete, committing transaction &#123;&#125; from checkpoint &#123;&#125;&quot;,</span><br><span class="line">				name(), checkpointId, pendingTransaction, pendingTransactionCheckpointId);</span><br><span class="line"></span><br><span class="line">			logWarningIfTimeoutAlmostReached(pendingTransaction);</span><br><span class="line">			commit(pendingTransaction.handle);</span><br><span class="line"></span><br><span class="line">			LOG.debug(&quot;&#123;&#125; - committed checkpoint transaction &#123;&#125;&quot;, name(), pendingTransaction);</span><br><span class="line"></span><br><span class="line">			pendingTransactionIterator.remove();</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br></pre></td></tr></table></figure>
+
+<p>依此提交所有当前checkpointId之前的pre-commit事务</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br></pre></td><td class="code"><pre><span class="line">@Internal</span><br><span class="line">	public static final class TransactionHolder&lt;TXN&gt; &#123;</span><br><span class="line"></span><br><span class="line">		private final TXN handle;</span><br><span class="line"></span><br><span class="line">		&#x2F;**</span><br><span class="line">		 * The system time when &#123;@link #handle&#125; was created.</span><br><span class="line">		 * Used to determine if the current transaction has exceeded its timeout specified by</span><br><span class="line">		 * &#123;@link #transactionTimeout&#125;.</span><br><span class="line">		 *&#x2F;</span><br><span class="line">		private final long transactionStartTime;</span><br><span class="line"></span><br><span class="line">		@VisibleForTesting</span><br><span class="line">		public TransactionHolder(TXN handle, long transactionStartTime) &#123;</span><br><span class="line">			this.handle &#x3D; handle;</span><br><span class="line">			this.transactionStartTime &#x3D; transactionStartTime;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		long elapsedTime(Clock clock) &#123;</span><br><span class="line">			return clock.millis() - transactionStartTime;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		@Override</span><br><span class="line">		public boolean equals(Object o) &#123;</span><br><span class="line">			if (this &#x3D;&#x3D; o) &#123;</span><br><span class="line">				return true;</span><br><span class="line">			&#125;</span><br><span class="line">			if (o &#x3D;&#x3D; null || getClass() !&#x3D; o.getClass()) &#123;</span><br><span class="line">				return false;</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			TransactionHolder&lt;?&gt; that &#x3D; (TransactionHolder&lt;?&gt;) o;</span><br><span class="line"></span><br><span class="line">			if (transactionStartTime !&#x3D; that.transactionStartTime) &#123;</span><br><span class="line">				return false;</span><br><span class="line">			&#125;</span><br><span class="line">			return handle !&#x3D; null ? handle.equals(that.handle) : that.handle &#x3D;&#x3D; null;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		@Override</span><br><span class="line">		public int hashCode() &#123;</span><br><span class="line">			int result &#x3D; handle !&#x3D; null ? handle.hashCode() : 0;</span><br><span class="line">			result &#x3D; 31 * result + (int) (transactionStartTime ^ (transactionStartTime &gt;&gt;&gt; 32));</span><br><span class="line">			return result;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		@Override</span><br><span class="line">		public String toString() &#123;</span><br><span class="line">			return &quot;TransactionHolder&#123;&quot; +</span><br><span class="line">				&quot;handle&#x3D;&quot; + handle +</span><br><span class="line">				&quot;, transactionStartTime&#x3D;&quot; + transactionStartTime +</span><br><span class="line">				&#39;&#125;&#39;;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br></pre></td></tr></table></figure>
+
+<p>TransactionHolder，存放事务及事务创建时间</p>
+<p>以下为用户自定义函数：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;**</span><br><span class="line">* Write value within a transaction.</span><br><span class="line">*&#x2F;</span><br><span class="line">protected abstract void invoke(TXN transaction, IN value, Context context) throws Exception;</span><br><span class="line"></span><br><span class="line">&#x2F;**</span><br><span class="line">* Method that starts a new transaction.</span><br><span class="line">*</span><br><span class="line">* @return newly created transaction.</span><br><span class="line">*&#x2F;</span><br><span class="line">protected abstract TXN beginTransaction() throws Exception;</span><br><span class="line"></span><br><span class="line">&#x2F;**</span><br><span class="line">* Pre commit previously created transaction. Pre commit must make all of the necessary steps to prepare the</span><br><span class="line">* transaction for a commit that might happen in the future. After this point the transaction might still be</span><br><span class="line">* aborted, but underlying implementation must ensure that commit calls on already pre committed transactions</span><br><span class="line">* will always succeed.</span><br><span class="line">*</span><br><span class="line">* &lt;p&gt;Usually implementation involves flushing the data.</span><br><span class="line">*&#x2F;</span><br><span class="line">protected abstract void preCommit(TXN transaction) throws Exception;</span><br><span class="line"></span><br><span class="line">&#x2F;**</span><br><span class="line">* Commit a pre-committed transaction. If this method fail, Flink application will be</span><br><span class="line">* restarted and &#123;@link TwoPhaseCommitSinkFunction#recoverAndCommit(Object)&#125; will be called again for the</span><br><span class="line">* same transaction.</span><br><span class="line">*&#x2F;</span><br><span class="line">protected abstract void commit(TXN transaction);</span><br><span class="line"></span><br><span class="line">&#x2F;**</span><br><span class="line">* Abort a transaction.</span><br><span class="line">*&#x2F;</span><br><span class="line">protected abstract void abort(TXN transaction);</span><br></pre></td></tr></table></figure>
+
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/03/23/hello-world/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -428,7 +573,7 @@
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">11</span>
+                  <span class="site-state-item-count">12</span>
                   <span class="site-state-item-name">posts</span>
                 </a>
               </div>
