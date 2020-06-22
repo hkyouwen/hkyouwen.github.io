@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next muse use-motion" lang="en">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="Hexo, NexT" />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="上图是TaskManager 上报slot资源的大致流程。 TaskManager 管理slot的逻辑在TaskExecutor类里面。Resoucemanager组件对所有TaskManager 的slot资源进行管理，因此TaskExecutor与Resoucemanager建立连接之后会报告slot的分配情况。 12345678910111213141516171819202122priv">
+<meta property="og:type" content="article">
+<meta property="og:title" content="TaskManager上报slot资源管理">
+<meta property="og:url" content="http://yoursite.com/2020/06/18/TaskManager%E4%B8%8A%E6%8A%A5slot%E8%B5%84%E6%BA%90%E7%AE%A1%E7%90%86/index.html">
+<meta property="og:site_name" content="HK书屋">
+<meta property="og:description" content="上图是TaskManager 上报slot资源的大致流程。 TaskManager 管理slot的逻辑在TaskExecutor类里面。Resoucemanager组件对所有TaskManager 的slot资源进行管理，因此TaskExecutor与Resoucemanager建立连接之后会报告slot的分配情况。 12345678910111213141516171819202122priv">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://yoursite.com/2020/06/18/TaskManager%E4%B8%8A%E6%8A%A5slot%E8%B5%84%E6%BA%90%E7%AE%A1%E7%90%86/1.png">
+<meta property="article:published_time" content="2020-06-18T07:55:12.514Z">
+<meta property="article:modified_time" content="2020-06-22T02:09:18.276Z">
+<meta property="article:author" content="HH KKs">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://yoursite.com/2020/06/18/TaskManager%E4%B8%8A%E6%8A%A5slot%E8%B5%84%E6%BA%90%E7%AE%A1%E7%90%86/1.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Muse',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: 'Author'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2020/06/18/TaskManager上报slot资源管理/"/>
+
+
+
+
+
+  <title>TaskManager上报slot资源管理 | HK书屋</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.0"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="en">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">HK书屋</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-question-circle"></i> <br />
+            
+            Home
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-question-circle"></i> <br />
+            
+            About
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-question-circle"></i> <br />
+            
+            Tags
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-question-circle"></i> <br />
+            
+            Categories
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-question-circle"></i> <br />
+            
+            Archives
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/06/18/TaskManager%E4%B8%8A%E6%8A%A5slot%E8%B5%84%E6%BA%90%E7%AE%A1%E7%90%86/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="HH KKs">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="HK书屋">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">TaskManager上报slot资源管理</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">Posted on</span>
+              
+              <time title="Post created" itemprop="dateCreated datePublished" datetime="2020-06-18T15:55:12+08:00">
+                2020-06-18
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p><img src="/2020/06/18/TaskManager%E4%B8%8A%E6%8A%A5slot%E8%B5%84%E6%BA%90%E7%AE%A1%E7%90%86/1.png" alt></p>
+<p>上图是TaskManager 上报slot资源的大致流程。</p>
+<p>TaskManager 管理slot的逻辑在TaskExecutor类里面。Resoucemanager组件对所有TaskManager 的slot资源进行管理，因此TaskExecutor与Resoucemanager建立连接之后会报告slot的分配情况。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">private void establishResourceManagerConnection(</span><br><span class="line">			ResourceManagerGateway resourceManagerGateway,</span><br><span class="line">			ResourceID resourceManagerResourceId,</span><br><span class="line">			InstanceID taskExecutorRegistrationId,</span><br><span class="line">			ClusterInformation clusterInformation) &#123;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;发送slot报告</span><br><span class="line">		final CompletableFuture&lt;Acknowledge&gt; slotReportResponseFuture &#x3D; resourceManagerGateway.sendSlotReport(</span><br><span class="line">			getResourceID(),</span><br><span class="line">			taskExecutorRegistrationId,</span><br><span class="line">			taskSlotTable.createSlotReport(getResourceID()),</span><br><span class="line">			taskManagerConfiguration.getTimeout());</span><br><span class="line"></span><br><span class="line">		slotReportResponseFuture.whenCompleteAsync(</span><br><span class="line">			(acknowledge, throwable) -&gt; &#123;</span><br><span class="line">				if (throwable !&#x3D; null) &#123;</span><br><span class="line">					reconnectToResourceManager(new TaskManagerException(&quot;Failed to send initial slot report to ResourceManager.&quot;, throwable));</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;, getMainThreadExecutor());</span><br><span class="line"></span><br><span class="line">		......</span><br><span class="line">	&#125;</span><br></pre></td></tr></table></figure>
+
+<p>TaskSlotTableImpl类的createSlotReport，收集该TaskManager 的slot资源情况，TaskSlotTableImpl类是TaskSlotTable实现类。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line">public SlotReport createSlotReport(ResourceID resourceId) &#123;</span><br><span class="line">   List&lt;SlotStatus&gt; slotStatuses &#x3D; new ArrayList&lt;&gt;();</span><br><span class="line"></span><br><span class="line">   for (int i &#x3D; 0; i &lt; numberSlots; i++) &#123;</span><br><span class="line">      SlotID slotId &#x3D; new SlotID(resourceId, i);</span><br><span class="line">      SlotStatus slotStatus;</span><br><span class="line">      \\所有的taskSlots</span><br><span class="line">      if (taskSlots.containsKey(i)) &#123;</span><br><span class="line">         TaskSlot&lt;T&gt; taskSlot &#x3D; taskSlots.get(i);</span><br><span class="line"></span><br><span class="line">         slotStatus &#x3D; new SlotStatus(</span><br><span class="line">            slotId,</span><br><span class="line">            taskSlot.getResourceProfile(),</span><br><span class="line">            taskSlot.getJobId(),</span><br><span class="line">            taskSlot.getAllocationId());</span><br><span class="line">      &#125; else &#123;</span><br><span class="line">      \\初始slot状态未分配id</span><br><span class="line">         slotStatus &#x3D; new SlotStatus(</span><br><span class="line">            slotId,</span><br><span class="line">            defaultSlotResourceProfile,</span><br><span class="line">            null,</span><br><span class="line">            null);</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      slotStatuses.add(slotStatus);</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">\\allocation slot id</span><br><span class="line">   for (TaskSlot&lt;T&gt; taskSlot : allocatedSlots.values()) &#123;</span><br><span class="line">      if (taskSlot.getIndex() &lt; 0) &#123;</span><br><span class="line">         SlotID slotID &#x3D; SlotID.generateDynamicSlotID(resourceId);</span><br><span class="line">         SlotStatus slotStatus &#x3D; new SlotStatus(</span><br><span class="line">            slotID,</span><br><span class="line">            taskSlot.getResourceProfile(),</span><br><span class="line">            taskSlot.getJobId(),</span><br><span class="line">            taskSlot.getAllocationId());</span><br><span class="line">         slotStatuses.add(slotStatus);</span><br><span class="line">      &#125;</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   final SlotReport slotReport &#x3D; new SlotReport(slotStatuses);</span><br><span class="line"></span><br><span class="line">   return slotReport;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>先看一下TaskSlotTable的初始化，这个过程是在启动TaskManager的过程中。TaskManagerRunner类的startTaskManager方法启动TaskExecutor，同时初始化TaskManagerServices，初始化TaskManagerServices之前创建TaskSlotTable，做为TaskManagerServices的一个成员变量。createTaskSlotTable方法初始化TaskSlotTableImpl。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">TaskManagerServices taskManagerServices &#x3D; TaskManagerServices.fromConfiguration(</span><br><span class="line">   taskManagerServicesConfiguration,</span><br><span class="line">   taskManagerMetricGroup.f1,</span><br><span class="line">   rpcService.getExecutor());</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">public static TaskManagerServices fromConfiguration(</span><br><span class="line">      TaskManagerServicesConfiguration taskManagerServicesConfiguration,</span><br><span class="line">      MetricGroup taskManagerMetricGroup,</span><br><span class="line">      Executor taskIOExecutor) throws Exception &#123;</span><br><span class="line"></span><br><span class="line">  ......</span><br><span class="line"></span><br><span class="line">   final TaskSlotTable&lt;Task&gt; taskSlotTable &#x3D; createTaskSlotTable(</span><br><span class="line">      taskManagerServicesConfiguration.getNumberOfSlots(),</span><br><span class="line">      taskManagerServicesConfiguration.getTaskExecutorResourceSpec(),</span><br><span class="line">      taskManagerServicesConfiguration.getTimerServiceShutdownTimeout(),</span><br><span class="line">      taskManagerServicesConfiguration.getPageSize());</span><br><span class="line"></span><br><span class="line">  ......</span><br><span class="line">  return new TaskManagerServices(..</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">private static TaskSlotTable&lt;Task&gt; createTaskSlotTable(</span><br><span class="line">      final int numberOfSlots,</span><br><span class="line">      final TaskExecutorResourceSpec taskExecutorResourceSpec,</span><br><span class="line">      final long timerServiceShutdownTimeout,</span><br><span class="line">      final int pageSize) &#123;</span><br><span class="line">   final TimerService&lt;AllocationID&gt; timerService &#x3D; new TimerService&lt;&gt;(</span><br><span class="line">      new ScheduledThreadPoolExecutor(1),</span><br><span class="line">      timerServiceShutdownTimeout);</span><br><span class="line">   return new TaskSlotTableImpl&lt;&gt;(</span><br><span class="line">      numberOfSlots,</span><br><span class="line">      TaskExecutorResourceUtils.generateTotalAvailableResourceProfile(taskExecutorResourceSpec),</span><br><span class="line">      TaskExecutorResourceUtils.generateDefaultSlotResourceProfile(taskExecutorResourceSpec, numberOfSlots),</span><br><span class="line">      pageSize,</span><br><span class="line">      timerService);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>TaskSlotTable生成slot的报告之后向resourceManagerGateway发送slot资源信息，</p>
+<p>ResourceManager类：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">public CompletableFuture&lt;Acknowledge&gt; sendSlotReport(ResourceID taskManagerResourceId, InstanceID taskManagerRegistrationId, SlotReport slotReport, Time timeout) &#123;</span><br><span class="line">   final WorkerRegistration&lt;WorkerType&gt; workerTypeWorkerRegistration &#x3D; taskExecutors.get(taskManagerResourceId);</span><br><span class="line"></span><br><span class="line">   if (workerTypeWorkerRegistration.getInstanceID().equals(taskManagerRegistrationId)) &#123;</span><br><span class="line">      slotManager.registerTaskManager(workerTypeWorkerRegistration, slotReport);</span><br><span class="line">      return CompletableFuture.completedFuture(Acknowledge.get());</span><br><span class="line">   &#125; else &#123;</span><br><span class="line">      return FutureUtils.completedExceptionally(new ResourceManagerException(String.format(&quot;Unknown TaskManager registration id %s.&quot;, taskManagerRegistrationId)));</span><br><span class="line">   &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>进入SlotManagerImpl类,向SlotManager注册TaskManager</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line">public void registerTaskManager(final TaskExecutorConnection taskExecutorConnection, SlotReport initialSlotReport) &#123;</span><br><span class="line"></span><br><span class="line">   &#x2F;&#x2F; we identify task managers by their instance id</span><br><span class="line">   &#x2F;&#x2F;已经注册的taskManager上报更新SlotStatus</span><br><span class="line">   if (taskManagerRegistrations.containsKey(taskExecutorConnection.getInstanceID())) &#123;</span><br><span class="line">      reportSlotStatus(taskExecutorConnection.getInstanceID(), initialSlotReport);</span><br><span class="line">   &#125; else &#123;</span><br><span class="line">   &#x2F;&#x2F;第一次注册的TaskManager，新注册TaskManager和slot</span><br><span class="line">      &#x2F;&#x2F; first register the TaskManager</span><br><span class="line">      ArrayList&lt;SlotID&gt; reportedSlots &#x3D; new ArrayList&lt;&gt;();</span><br><span class="line"></span><br><span class="line">      for (SlotStatus slotStatus : initialSlotReport) &#123;</span><br><span class="line">         reportedSlots.add(slotStatus.getSlotID());</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      TaskManagerRegistration taskManagerRegistration &#x3D; new TaskManagerRegistration(</span><br><span class="line">         taskExecutorConnection,</span><br><span class="line">         reportedSlots);</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;添加新的taskManager的id</span><br><span class="line">      taskManagerRegistrations.put(taskExecutorConnection.getInstanceID(), taskManagerRegistration);</span><br><span class="line"></span><br><span class="line">      &#x2F;&#x2F; next register the new slots</span><br><span class="line">      &#x2F;&#x2F;register新的slot</span><br><span class="line">      for (SlotStatus slotStatus : initialSlotReport) &#123;</span><br><span class="line">         registerSlot(</span><br><span class="line">            slotStatus.getSlotID(),</span><br><span class="line">            slotStatus.getAllocationID(),</span><br><span class="line">            slotStatus.getJobID(),</span><br><span class="line">            slotStatus.getResourceProfile(),</span><br><span class="line">            taskExecutorConnection);</span><br><span class="line">      &#125;</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>SlotManagerImpl注册新的slot</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br></pre></td><td class="code"><pre><span class="line">private void registerSlot(</span><br><span class="line">      SlotID slotId,</span><br><span class="line">      AllocationID allocationId,</span><br><span class="line">      JobID jobId,</span><br><span class="line">      ResourceProfile resourceProfile,</span><br><span class="line">      TaskExecutorConnection taskManagerConnection) &#123;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;删除老的同名slot</span><br><span class="line">   if (slots.containsKey(slotId)) &#123;</span><br><span class="line">      &#x2F;&#x2F; remove the old slot first</span><br><span class="line">      removeSlot(</span><br><span class="line">         slotId,</span><br><span class="line">         new SlotManagerException(</span><br><span class="line">            String.format(</span><br><span class="line">               &quot;Re-registration of slot %s. This indicates that the TaskExecutor has re-connected.&quot;,</span><br><span class="line">               slotId)));</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;初始化TaskManagerSlot类并将&lt;SlotId,TaskManagerSlot&gt;键值对存入slots</span><br><span class="line">   final TaskManagerSlot slot &#x3D; createAndRegisterTaskManagerSlot(slotId, resourceProfile, taskManagerConnection);</span><br><span class="line"></span><br><span class="line">   final PendingTaskManagerSlot pendingTaskManagerSlot;</span><br><span class="line"></span><br><span class="line">   if (allocationId &#x3D;&#x3D; null) &#123;</span><br><span class="line">   &#x2F;&#x2F;这个 slot 还没有被分配，则找到和当前 slot 的计算资源相匹配的 PendingTaskManagerSlot</span><br><span class="line">      pendingTaskManagerSlot &#x3D; findExactlyMatchingPendingTaskManagerSlot(resourceProfile);</span><br><span class="line">   &#125; else &#123;</span><br><span class="line">   &#x2F;&#x2F;这个 slot 已经被分配了</span><br><span class="line">      pendingTaskManagerSlot &#x3D; null;</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   if (pendingTaskManagerSlot &#x3D;&#x3D; null) &#123;</span><br><span class="line">   &#x2F;&#x2F;两种可能： 1）slot已经被分配了 2）没有匹配的 PendingTaskManagerSlot</span><br><span class="line">      updateSlot(slotId, allocationId, jobId);</span><br><span class="line">   &#125; else &#123;</span><br><span class="line">   &#x2F;&#x2F; 新注册的 slot 能够满足 PendingTaskManagerSlot 的要求</span><br><span class="line">      pendingSlots.remove(pendingTaskManagerSlot.getTaskManagerSlotId());</span><br><span class="line">      final PendingSlotRequest assignedPendingSlotRequest &#x3D; pendingTaskManagerSlot.getAssignedPendingSlotRequest();</span><br><span class="line">     &#x2F;&#x2F; PendingTaskManagerSlot 可能有关联的 PedningSlotRequest</span><br><span class="line">      if (assignedPendingSlotRequest &#x3D;&#x3D; null) &#123;</span><br><span class="line">      &#x2F;&#x2F;没有关联的 PedningSlotRequest，则将 slot 是 Free 状态</span><br><span class="line">         handleFreeSlot(slot);</span><br><span class="line">      &#125; else &#123;</span><br><span class="line">      &#x2F;&#x2F;有关联的 PedningSlotRequest，则这个 request 可以被满足，分配 slot</span><br><span class="line">         assignedPendingSlotRequest.unassignPendingTaskManagerSlot();</span><br><span class="line">         allocateSlot(slot, assignedPendingSlotRequest);</span><br><span class="line">      &#125;</span><br><span class="line">   &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>handleFreeSlot方法先查找是否有能够满足的 PendingSlotRequest，如果没有将该TaskManagerSlot放入freeSlots列表中</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">private void handleFreeSlot(TaskManagerSlot freeSlot) &#123;</span><br><span class="line">   Preconditions.checkState(freeSlot.getState() &#x3D;&#x3D; TaskManagerSlot.State.FREE);</span><br><span class="line"></span><br><span class="line">   PendingSlotRequest pendingSlotRequest &#x3D; findMatchingRequest(freeSlot.getResourceProfile());</span><br><span class="line"></span><br><span class="line">   if (null !&#x3D; pendingSlotRequest) &#123;</span><br><span class="line">      allocateSlot(freeSlot, pendingSlotRequest);</span><br><span class="line">   &#125; else &#123;</span><br><span class="line">      freeSlots.put(freeSlot.getSlotId(), freeSlot);</span><br><span class="line">   &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>SlotManagerImpl分配slot</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br></pre></td><td class="code"><pre><span class="line">private void allocateSlot(TaskManagerSlot taskManagerSlot, PendingSlotRequest pendingSlotRequest) &#123;</span><br><span class="line">   Preconditions.checkState(taskManagerSlot.getState() &#x3D;&#x3D; TaskManagerSlot.State.FREE);</span><br><span class="line"></span><br><span class="line">   TaskExecutorConnection taskExecutorConnection &#x3D; taskManagerSlot.getTaskManagerConnection();</span><br><span class="line">   TaskExecutorGateway gateway &#x3D; taskExecutorConnection.getTaskExecutorGateway();</span><br><span class="line"></span><br><span class="line">   final CompletableFuture&lt;Acknowledge&gt; completableFuture &#x3D; new CompletableFuture&lt;&gt;();</span><br><span class="line">   final AllocationID allocationId &#x3D; pendingSlotRequest.getAllocationId();</span><br><span class="line">   final SlotID slotId &#x3D; taskManagerSlot.getSlotId();</span><br><span class="line">   final InstanceID instanceID &#x3D; taskManagerSlot.getInstanceId();</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;taskManagerSlot 状态变为 PENDING</span><br><span class="line">   taskManagerSlot.assignPendingSlotRequest(pendingSlotRequest);</span><br><span class="line">   pendingSlotRequest.setRequestFuture(completableFuture);</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;如果有 PendingTaskManager 指派给当前 pendingSlotRequest，要先解除关联</span><br><span class="line">   returnPendingTaskManagerSlotIfAssigned(pendingSlotRequest);</span><br><span class="line"></span><br><span class="line">   TaskManagerRegistration taskManagerRegistration &#x3D; taskManagerRegistrations.get(instanceID);</span><br><span class="line"></span><br><span class="line">   if (taskManagerRegistration &#x3D;&#x3D; null) &#123;</span><br><span class="line">      throw new IllegalStateException(&quot;Could not find a registered task manager for instance id &quot; +</span><br><span class="line">         instanceID + &#39;.&#39;);</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   taskManagerRegistration.markUsed();</span><br><span class="line"></span><br><span class="line">   &#x2F;&#x2F; RPC call to the task manager</span><br><span class="line">   &#x2F;&#x2F; 通过 RPC 调用向 TaskExecutor 请求 slot</span><br><span class="line">   CompletableFuture&lt;Acknowledge&gt; requestFuture &#x3D; gateway.requestSlot(</span><br><span class="line">      slotId,</span><br><span class="line">      pendingSlotRequest.getJobId(),</span><br><span class="line">      allocationId,</span><br><span class="line">      pendingSlotRequest.getResourceProfile(),</span><br><span class="line">      pendingSlotRequest.getTargetAddress(),</span><br><span class="line">      resourceManagerId,</span><br><span class="line">      taskManagerRequestTimeout);</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;RPC调用的请求完成</span><br><span class="line">   requestFuture.whenComplete(</span><br><span class="line">      (Acknowledge acknowledge, Throwable throwable) -&gt; &#123;</span><br><span class="line">         if (acknowledge !&#x3D; null) &#123;</span><br><span class="line">            completableFuture.complete(acknowledge);</span><br><span class="line">         &#125; else &#123;</span><br><span class="line">            completableFuture.completeExceptionally(throwable);</span><br><span class="line">         &#125;</span><br><span class="line">      &#125;);</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;PendingSlotRequest 请求完成的回调函数</span><br><span class="line">		&#x2F;&#x2F;PendingSlotRequest 请求完成可能是由于上面 RPC 调用完成，也可能是因为 PendingSlotRequest 被取消</span><br><span class="line">   completableFuture.whenCompleteAsync(</span><br><span class="line">      (Acknowledge acknowledge, Throwable throwable) -&gt; &#123;</span><br><span class="line">         try &#123;</span><br><span class="line">            if (acknowledge !&#x3D; null) &#123;</span><br><span class="line">            &#x2F;&#x2F;如果请求成功，则取消 pendingSlotRequest，并更新 slot 状态 PENDING -&gt; ALLOCATED</span><br><span class="line">               updateSlot(slotId, allocationId, pendingSlotRequest.getJobId());</span><br><span class="line">            &#125; else &#123;</span><br><span class="line">               if (throwable instanceof SlotOccupiedException) &#123;</span><br><span class="line">               &#x2F;&#x2F;这个 slot 已经被占用了，更新状态</span><br><span class="line">                  SlotOccupiedException exception &#x3D; (SlotOccupiedException) throwable;</span><br><span class="line">                  updateSlot(slotId, exception.getAllocationId(), exception.getJobId());</span><br><span class="line">               &#125; else &#123;</span><br><span class="line">               &#x2F;&#x2F;请求失败，将 pendingSlotRequest 从 TaskManagerSlot 中移除</span><br><span class="line">                  removeSlotRequestFromSlot(slotId, allocationId);</span><br><span class="line">               &#125;</span><br><span class="line"></span><br><span class="line">               if (!(throwable instanceof CancellationException)) &#123;</span><br><span class="line">               &#x2F;&#x2F;slot request 请求失败，会进行重试</span><br><span class="line">                  handleFailedSlotRequest(slotId, allocationId, throwable);</span><br><span class="line">               &#125; else &#123;</span><br><span class="line">               &#x2F;&#x2F;主动取消</span><br><span class="line">                  LOG.debug(&quot;Slot allocation request &#123;&#125; has been cancelled.&quot;, allocationId, throwable);</span><br><span class="line">               &#125;</span><br><span class="line">            &#125;</span><br><span class="line">         &#125; catch (Exception e) &#123;</span><br><span class="line">            LOG.error(&quot;Error while completing the slot allocation.&quot;, e);</span><br><span class="line">         &#125;</span><br><span class="line">      &#125;,</span><br><span class="line">      mainThreadExecutor);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>请求slot调用TaskExecutor 的requestSlot方法，由TaskExecutor 直接向jobManager提供slot</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br></pre></td><td class="code"><pre><span class="line">public CompletableFuture&lt;Acknowledge&gt; requestSlot(</span><br><span class="line">   final SlotID slotId,</span><br><span class="line">   final JobID jobId,</span><br><span class="line">   final AllocationID allocationId,</span><br><span class="line">   final ResourceProfile resourceProfile,</span><br><span class="line">   final String targetAddress,</span><br><span class="line">   final ResourceManagerId resourceManagerId,</span><br><span class="line">   final Time timeout) &#123;</span><br><span class="line"></span><br><span class="line">   try &#123;</span><br><span class="line">   &#x2F;&#x2F;判断发送请求的 RM 是否是当前 TaskExecutor 注册的</span><br><span class="line">      if (!isConnectedToResourceManager(resourceManagerId)) &#123;</span><br><span class="line">         final String message &#x3D; String.format(&quot;TaskManager is not connected to the resource manager %s.&quot;, resourceManagerId);</span><br><span class="line">         log.debug(message);</span><br><span class="line">         throw new TaskManagerException(message);</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      if (taskSlotTable.isSlotFree(slotId.getSlotNumber())) &#123;</span><br><span class="line">      &#x2F;&#x2F;如果 slot 是 Free 状态，则分配 slot</span><br><span class="line">         if (taskSlotTable.allocateSlot(slotId.getSlotNumber(), jobId, allocationId, resourceProfile, taskManagerConfiguration.getTimeout())) &#123;</span><br><span class="line">            log.info(&quot;Allocated slot for &#123;&#125;.&quot;, allocationId);</span><br><span class="line">         &#125; else &#123;</span><br><span class="line">            log.info(&quot;Could not allocate slot for &#123;&#125;.&quot;, allocationId);</span><br><span class="line">            throw new SlotAllocationException(&quot;Could not allocate slot.&quot;);</span><br><span class="line">         &#125;</span><br><span class="line">      &#125; else if (!taskSlotTable.isAllocated(slotId.getSlotNumber(), jobId, allocationId)) &#123;</span><br><span class="line">      &#x2F;&#x2F;如果 slot 已经被分配了，则抛出异常</span><br><span class="line">         final String message &#x3D; &quot;The slot &quot; + slotId + &quot; has already been allocated for a different job.&quot;;</span><br><span class="line"></span><br><span class="line">         log.info(message);</span><br><span class="line"></span><br><span class="line">         final AllocationID allocationID &#x3D; taskSlotTable.getCurrentAllocation(slotId.getSlotNumber());</span><br><span class="line">         throw new SlotOccupiedException(message, allocationID, taskSlotTable.getOwningJob(allocationID));</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;将分配的 slot 提供给发送请求的 JobManager</span><br><span class="line">      if (jobManagerTable.contains(jobId)) &#123;</span><br><span class="line">      &#x2F;&#x2F;如果和对应的 JobManager 已经建立了连接，则向 JobManager 提供 slot</span><br><span class="line">         offerSlotsToJobManager(jobId);</span><br><span class="line">      &#125; else &#123;</span><br><span class="line">         try &#123;</span><br><span class="line">         &#x2F;&#x2F;否则，先和JobManager 建立连接，连接建立后会调用 offerSlotsToJobManager(jobId) 方法</span><br><span class="line">            jobLeaderService.addJob(jobId, targetAddress);</span><br><span class="line">         &#125; catch (Exception e) &#123;</span><br><span class="line">            &#x2F;&#x2F; free the allocated slot</span><br><span class="line">            try &#123;</span><br><span class="line">               taskSlotTable.freeSlot(allocationId);</span><br><span class="line">            &#125; catch (SlotNotFoundException slotNotFoundException) &#123;</span><br><span class="line">               &#x2F;&#x2F; slot no longer existent, this should actually never happen, because we&#39;ve</span><br><span class="line">               &#x2F;&#x2F; just allocated the slot. So let&#39;s fail hard in this case!</span><br><span class="line">               onFatalError(slotNotFoundException);</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            &#x2F;&#x2F; release local state under the allocation id.</span><br><span class="line">            localStateStoresManager.releaseLocalStateForAllocationId(allocationId);</span><br><span class="line"></span><br><span class="line">            &#x2F;&#x2F; sanity check</span><br><span class="line">            if (!taskSlotTable.isSlotFree(slotId.getSlotNumber())) &#123;</span><br><span class="line">               onFatalError(new Exception(&quot;Could not free slot &quot; + slotId));</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            throw new SlotAllocationException(&quot;Could not add job to job leader service.&quot;, e);</span><br><span class="line">         &#125;</span><br><span class="line">      &#125;</span><br><span class="line">   &#125; catch (TaskManagerException taskManagerException) &#123;</span><br><span class="line">      return FutureUtils.completedExceptionally(taskManagerException);</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   return CompletableFuture.completedFuture(Acknowledge.get());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>在 Slot 被分配给之后，TaskExecutor 需要将对应的 slot 提供给 JobManager，而这是通过 <code>offerSlotsToJobManager(jobId)</code> 方法来实现的：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line">private void offerSlotsToJobManager(final JobID jobId) &#123;</span><br><span class="line">   final JobManagerConnection jobManagerConnection &#x3D; jobManagerTable.get(jobId);</span><br><span class="line"></span><br><span class="line">   if (jobManagerConnection &#x3D;&#x3D; null) &#123;</span><br><span class="line">      log.debug(&quot;There is no job manager connection to the leader of job &#123;&#125;.&quot;, jobId);</span><br><span class="line">   &#125; else &#123;</span><br><span class="line">      if (taskSlotTable.hasAllocatedSlots(jobId)) &#123;</span><br><span class="line">         log.info(&quot;Offer reserved slots to the leader of job &#123;&#125;.&quot;, jobId);</span><br><span class="line"></span><br><span class="line">         final JobMasterGateway jobMasterGateway &#x3D; jobManagerConnection.getJobManagerGateway();</span><br><span class="line">       &#x2F;&#x2F;获取分配给当前 Job 的 slot，这里只会取得状态为 allocated 的 slot</span><br><span class="line">         final Iterator&lt;TaskSlot&lt;Task&gt;&gt; reservedSlotsIterator &#x3D; taskSlotTable.getAllocatedSlots(jobId);</span><br><span class="line">         final JobMasterId jobMasterId &#x3D; jobManagerConnection.getJobMasterId();</span><br><span class="line"></span><br><span class="line">         final Collection&lt;SlotOffer&gt; reservedSlots &#x3D; new HashSet&lt;&gt;(2);</span><br><span class="line"></span><br><span class="line">         while (reservedSlotsIterator.hasNext()) &#123;</span><br><span class="line">         &#x2F;&#x2F;SlotOffer请求类，用于向jobmanager提供slot</span><br><span class="line">            SlotOffer offer &#x3D; reservedSlotsIterator.next().generateSlotOffer();</span><br><span class="line">            reservedSlots.add(offer);</span><br><span class="line">         &#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;通过 RPC 调用，将slot提供给 JobMaster</span><br><span class="line">         CompletableFuture&lt;Collection&lt;SlotOffer&gt;&gt; acceptedSlotsFuture &#x3D; jobMasterGateway.offerSlots(</span><br><span class="line">            getResourceID(),</span><br><span class="line">            reservedSlots,</span><br><span class="line">            taskManagerConfiguration.getTimeout());</span><br><span class="line"></span><br><span class="line">         acceptedSlotsFuture.whenCompleteAsync(</span><br><span class="line">            handleAcceptedSlotOffers(jobId, jobMasterGateway, jobMasterId, reservedSlots),</span><br><span class="line">            getMainThreadExecutor());</span><br><span class="line">      &#125; else &#123;</span><br><span class="line">         log.debug(&quot;There are no unassigned slots for the job &#123;&#125;.&quot;, jobId);</span><br><span class="line">      &#125;</span><br><span class="line">   &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br></pre></td><td class="code"><pre><span class="line">private BiConsumer&lt;Iterable&lt;SlotOffer&gt;, Throwable&gt; handleAcceptedSlotOffers(JobID jobId, JobMasterGateway jobMasterGateway, JobMasterId jobMasterId, Collection&lt;SlotOffer&gt; offeredSlots) &#123;</span><br><span class="line">   return (Iterable&lt;SlotOffer&gt; acceptedSlots, Throwable throwable) -&gt; &#123;</span><br><span class="line">      if (throwable !&#x3D; null) &#123;</span><br><span class="line">      &#x2F;&#x2F;超时，则重试</span><br><span class="line">         if (throwable instanceof TimeoutException) &#123;</span><br><span class="line">            log.info(&quot;Slot offering to JobManager did not finish in time. Retrying the slot offering.&quot;);</span><br><span class="line">            &#x2F;&#x2F; We ran into a timeout. Try again.</span><br><span class="line">            offerSlotsToJobManager(jobId);</span><br><span class="line">         &#125; else &#123;</span><br><span class="line">            log.warn(&quot;Slot offering to JobManager failed. Freeing the slots &quot; +</span><br><span class="line">               &quot;and returning them to the ResourceManager.&quot;, throwable);</span><br><span class="line"></span><br><span class="line">            &#x2F;&#x2F; We encountered an exception. Free the slots and return them to the RM.</span><br><span class="line">            &#x2F;&#x2F; 发生异常，则释放所有的 slot</span><br><span class="line">            for (SlotOffer reservedSlot: offeredSlots) &#123;</span><br><span class="line">               freeSlotInternal(reservedSlot.getAllocationId(), throwable);</span><br><span class="line">            &#125;</span><br><span class="line">         &#125;</span><br><span class="line">      &#125; else &#123;</span><br><span class="line">      &#x2F;&#x2F;调用成功</span><br><span class="line">         &#x2F;&#x2F; check if the response is still valid</span><br><span class="line">         if (isJobManagerConnectionValid(jobId, jobMasterId)) &#123;</span><br><span class="line">            &#x2F;&#x2F; mark accepted slots active</span><br><span class="line">            &#x2F;&#x2F;对于被 JobMaster 确认接受的 slot， 标记为 Active 状态</span><br><span class="line">            for (SlotOffer acceptedSlot : acceptedSlots) &#123;</span><br><span class="line">               try &#123;</span><br><span class="line">                  if (!taskSlotTable.markSlotActive(acceptedSlot.getAllocationId())) &#123;</span><br><span class="line">                     &#x2F;&#x2F; the slot is either free or releasing at the moment</span><br><span class="line">                     final String message &#x3D; &quot;Could not mark slot &quot; + jobId + &quot; active.&quot;;</span><br><span class="line">                     log.debug(message);</span><br><span class="line">                     jobMasterGateway.failSlot(</span><br><span class="line">                        getResourceID(),</span><br><span class="line">                        acceptedSlot.getAllocationId(),</span><br><span class="line">                        new FlinkException(message));</span><br><span class="line">                  &#125;</span><br><span class="line">               &#125; catch (SlotNotFoundException e) &#123;</span><br><span class="line">                  final String message &#x3D; &quot;Could not mark slot &quot; + jobId + &quot; active.&quot;;</span><br><span class="line">                  jobMasterGateway.failSlot(</span><br><span class="line">                     getResourceID(),</span><br><span class="line">                     acceptedSlot.getAllocationId(),</span><br><span class="line">                     new FlinkException(message));</span><br><span class="line">               &#125;</span><br><span class="line"></span><br><span class="line">               offeredSlots.remove(acceptedSlot);</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            final Exception e &#x3D; new Exception(&quot;The slot was rejected by the JobManager.&quot;);</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;释放剩余没有被接受的 slot</span><br><span class="line">            for (SlotOffer rejectedSlot : offeredSlots) &#123;</span><br><span class="line">               freeSlotInternal(rejectedSlot.getAllocationId(), e);</span><br><span class="line">            &#125;</span><br><span class="line">         &#125; else &#123;</span><br><span class="line">            &#x2F;&#x2F; discard the response since there is a new leader for the job</span><br><span class="line">            log.debug(&quot;Discard offer slot response since there is a new leader &quot; +</span><br><span class="line">               &quot;for the job &#123;&#125;.&quot;, jobId);</span><br><span class="line">         &#125;</span><br><span class="line">      &#125;</span><br><span class="line">   &#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>通过 freeSlotInternal(AllocationID, Throwable)方法， 释放和 <code>AllocationID</code> 关联的 slot：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line">private void freeSlotInternal(AllocationID allocationId, Throwable cause) &#123;</span><br><span class="line">   checkNotNull(allocationId);</span><br><span class="line"></span><br><span class="line">   log.debug(&quot;Free slot with allocation id &#123;&#125; because: &#123;&#125;&quot;, allocationId, cause.getMessage());</span><br><span class="line"></span><br><span class="line">   try &#123;</span><br><span class="line">      final JobID jobId &#x3D; taskSlotTable.getOwningJob(allocationId);</span><br><span class="line">&#x2F;&#x2F;尝试释放 allocationId 绑定的 slot</span><br><span class="line">      final int slotIndex &#x3D; taskSlotTable.freeSlot(allocationId, cause);</span><br><span class="line"></span><br><span class="line">      if (slotIndex !&#x3D; -1) &#123;</span><br><span class="line">&#x2F;&#x2F;成功释放 slot</span><br><span class="line">         if (isConnectedToResourceManager()) &#123;</span><br><span class="line">         &#x2F;&#x2F;告知 ResourceManager 当前 slot 可用</span><br><span class="line">            &#x2F;&#x2F; the slot was freed. Tell the RM about it</span><br><span class="line">            ResourceManagerGateway resourceManagerGateway &#x3D; establishedResourceManagerConnection.getResourceManagerGateway();</span><br><span class="line"></span><br><span class="line">            resourceManagerGateway.notifySlotAvailable(</span><br><span class="line">               establishedResourceManagerConnection.getTaskExecutorRegistrationId(),</span><br><span class="line">               new SlotID(getResourceID(), slotIndex),</span><br><span class="line">               allocationId);</span><br><span class="line">         &#125;</span><br><span class="line"></span><br><span class="line">         if (jobId !&#x3D; null) &#123;</span><br><span class="line">        &#x2F;&#x2F; 如果和 allocationID 绑定的 Job 已经没有分配的 slot 了，那么可以断开和 JobMaster 的连接了</span><br><span class="line">            closeJobManagerConnectionIfNoAllocatedResources(jobId);</span><br><span class="line">         &#125;</span><br><span class="line">      &#125;</span><br><span class="line">   &#125; catch (SlotNotFoundException e) &#123;</span><br><span class="line">      log.debug(&quot;Could not free slot for allocation id &#123;&#125;.&quot;, allocationId, e);</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   localStateStoresManager.releaseLocalStateForAllocationId(allocationId);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>TaskExecutor 的 requestSlot是通过TaskSlotTableImpl的allocateSlot和freeSlot方法来分配和释放slot资源。TaskSlotTableImpl是TaskSlotTable的实现类。</p>
+<p>allocateSlot新建TaskSlot类并加入slot的map和已分配slot的map已经每个job的slot的map，freeSlot从各个map中移除TaskSlot</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br></pre></td><td class="code"><pre><span class="line">public boolean allocateSlot(</span><br><span class="line">      int index,</span><br><span class="line">      JobID jobId,</span><br><span class="line">      AllocationID allocationId,</span><br><span class="line">      ResourceProfile resourceProfile,</span><br><span class="line">      Time slotTimeout) &#123;</span><br><span class="line">   checkRunning();</span><br><span class="line"></span><br><span class="line">   Preconditions.checkArgument(index &lt; numberSlots);</span><br><span class="line"></span><br><span class="line">   TaskSlot&lt;T&gt; taskSlot &#x3D; allocatedSlots.get(allocationId);</span><br><span class="line">   if (taskSlot !&#x3D; null) &#123;</span><br><span class="line">      LOG.info(&quot;Allocation ID &#123;&#125; is already allocated in &#123;&#125;.&quot;, allocationId, taskSlot);</span><br><span class="line">      return false;</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   if (taskSlots.containsKey(index)) &#123;</span><br><span class="line">      TaskSlot&lt;T&gt; duplicatedTaskSlot &#x3D; taskSlots.get(index);</span><br><span class="line">      LOG.info(&quot;Slot with index &#123;&#125; already exist, with resource profile &#123;&#125;, job id &#123;&#125; and allocation id &#123;&#125;.&quot;,</span><br><span class="line">         index,</span><br><span class="line">         duplicatedTaskSlot.getResourceProfile(),</span><br><span class="line">         duplicatedTaskSlot.getJobId(),</span><br><span class="line">         duplicatedTaskSlot.getAllocationId());</span><br><span class="line">      return duplicatedTaskSlot.getJobId().equals(jobId) &amp;&amp;</span><br><span class="line">         duplicatedTaskSlot.getAllocationId().equals(allocationId);</span><br><span class="line">   &#125; else if (allocatedSlots.containsKey(allocationId)) &#123;</span><br><span class="line">      return true;</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   resourceProfile &#x3D; index &gt;&#x3D; 0 ? defaultSlotResourceProfile : resourceProfile;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;ResourceBudgetManager分配资源ResourceProfile，ResourceProfile是cpu，内存等指标，资源不够则报错</span><br><span class="line">   if (!budgetManager.reserve(resourceProfile)) &#123;</span><br><span class="line">      LOG.info(&quot;Cannot allocate the requested resources. Trying to allocate &#123;&#125;, &quot;</span><br><span class="line">            + &quot;while the currently remaining available resources are &#123;&#125;, total is &#123;&#125;.&quot;,</span><br><span class="line">         resourceProfile,</span><br><span class="line">         budgetManager.getAvailableBudget(),</span><br><span class="line">         budgetManager.getTotalBudget());</span><br><span class="line">      return false;</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;新建TaskSlot</span><br><span class="line">   taskSlot &#x3D; new TaskSlot&lt;&gt;(index, resourceProfile, memoryPageSize, jobId, allocationId);</span><br><span class="line">   if (index &gt;&#x3D; 0) &#123;</span><br><span class="line">      taskSlots.put(index, taskSlot);</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   &#x2F;&#x2F; update the allocation id to task slot map</span><br><span class="line">   allocatedSlots.put(allocationId, taskSlot);</span><br><span class="line"></span><br><span class="line">   &#x2F;&#x2F; register a timeout for this slot since it&#39;s in state allocated</span><br><span class="line">   timerService.registerTimeout(allocationId, slotTimeout.getSize(), slotTimeout.getUnit());</span><br><span class="line"></span><br><span class="line">   &#x2F;&#x2F; add this slot to the set of job slots</span><br><span class="line">   Set&lt;AllocationID&gt; slots &#x3D; slotsPerJob.get(jobId);</span><br><span class="line"></span><br><span class="line">   if (slots &#x3D;&#x3D; null) &#123;</span><br><span class="line">      slots &#x3D; new HashSet&lt;&gt;(4);</span><br><span class="line">      slotsPerJob.put(jobId, slots);</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   slots.add(allocationId);</span><br><span class="line"></span><br><span class="line">   return true;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line">public int freeSlot(AllocationID allocationId, Throwable cause) throws SlotNotFoundException &#123;</span><br><span class="line">   checkStarted();</span><br><span class="line"></span><br><span class="line">   TaskSlot&lt;T&gt; taskSlot &#x3D; getTaskSlot(allocationId);</span><br><span class="line"></span><br><span class="line">   if (taskSlot !&#x3D; null) &#123;</span><br><span class="line">      return freeSlotInternal(taskSlot, cause).isDone() ? taskSlot.getIndex() : -1;</span><br><span class="line">   &#125; else &#123;</span><br><span class="line">      throw new SlotNotFoundException(allocationId);</span><br><span class="line">   &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">private CompletableFuture&lt;Void&gt; freeSlotInternal(TaskSlot&lt;T&gt; taskSlot, Throwable cause) &#123;</span><br><span class="line">   AllocationID allocationId &#x3D; taskSlot.getAllocationId();</span><br><span class="line"></span><br><span class="line">   if (LOG.isDebugEnabled()) &#123;</span><br><span class="line">      LOG.debug(&quot;Free slot &#123;&#125;.&quot;, taskSlot, cause);</span><br><span class="line">   &#125; else &#123;</span><br><span class="line">      LOG.info(&quot;Free slot &#123;&#125;.&quot;, taskSlot);</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   if (taskSlot.isEmpty()) &#123;</span><br><span class="line">      &#x2F;&#x2F; remove the allocation id to task slot mapping</span><br><span class="line">      allocatedSlots.remove(allocationId);</span><br><span class="line"></span><br><span class="line">      &#x2F;&#x2F; unregister a potential timeout</span><br><span class="line">      timerService.unregisterTimeout(allocationId);</span><br><span class="line"></span><br><span class="line">      JobID jobId &#x3D; taskSlot.getJobId();</span><br><span class="line">      Set&lt;AllocationID&gt; slots &#x3D; slotsPerJob.get(jobId);</span><br><span class="line"></span><br><span class="line">      if (slots &#x3D;&#x3D; null) &#123;</span><br><span class="line">         throw new IllegalStateException(&quot;There are no more slots allocated for the job &quot; + jobId +</span><br><span class="line">            &quot;. This indicates a programming bug.&quot;);</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      slots.remove(allocationId);</span><br><span class="line"></span><br><span class="line">      if (slots.isEmpty()) &#123;</span><br><span class="line">         slotsPerJob.remove(jobId);</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      taskSlots.remove(taskSlot.getIndex());</span><br><span class="line">      &#x2F;&#x2F;ResourceBudgetManager释放资源ResourceProfile</span><br><span class="line">      budgetManager.release(taskSlot.getResourceProfile());</span><br><span class="line">   &#125;</span><br><span class="line">   return taskSlot.closeAsync(cause);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>然后来看下SlotManagerImpl的updateSlot更新Slot信息，updateSlot有两种情况，1，上报slot消息的taskExecutor已经注册，在reportSlotStatus方法中被调用，2，registerSlot时候被调用，slot已经被分配或没有匹配的 PendingTaskManagerSlot</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">private boolean updateSlot(SlotID slotId, AllocationID allocationId, JobID jobId) &#123;</span><br><span class="line">   final TaskManagerSlot slot &#x3D; slots.get(slotId);</span><br><span class="line"></span><br><span class="line">   if (slot !&#x3D; null) &#123;</span><br><span class="line">      final TaskManagerRegistration taskManagerRegistration &#x3D; taskManagerRegistrations.get(slot.getInstanceId());</span><br><span class="line"></span><br><span class="line">      if (taskManagerRegistration !&#x3D; null) &#123;</span><br><span class="line">         updateSlotState(slot, taskManagerRegistration, allocationId, jobId);</span><br><span class="line"></span><br><span class="line">         return true;</span><br><span class="line">      &#125; else &#123;</span><br><span class="line">         throw new IllegalStateException(&quot;Trying to update a slot from a TaskManager &quot; +</span><br><span class="line">            slot.getInstanceId() + &quot; which has not been registered.&quot;);</span><br><span class="line">      &#125;</span><br><span class="line">   &#125; else &#123;</span><br><span class="line">      LOG.debug(&quot;Trying to update unknown slot with slot id &#123;&#125;.&quot;, slotId);</span><br><span class="line"></span><br><span class="line">      return false;</span><br><span class="line">   &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>主要是调用updateSlotState方法，更新TaskManagerSlot的状态，有ALLOCATED，PENDING，FREE三种状态。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br></pre></td><td class="code"><pre><span class="line">private void updateSlotState(</span><br><span class="line">      TaskManagerSlot slot,</span><br><span class="line">      TaskManagerRegistration taskManagerRegistration,</span><br><span class="line">      @Nullable AllocationID allocationId,</span><br><span class="line">      @Nullable JobID jobId) &#123;</span><br><span class="line">   if (null !&#x3D; allocationId) &#123;</span><br><span class="line">      switch (slot.getState()) &#123;</span><br><span class="line">         case PENDING:</span><br><span class="line">            &#x2F;&#x2F; we have a pending slot request --&gt; check whether we have to reject it</span><br><span class="line">            PendingSlotRequest pendingSlotRequest &#x3D; slot.getAssignedSlotRequest();</span><br><span class="line"></span><br><span class="line">            if (Objects.equals(pendingSlotRequest.getAllocationId(), allocationId)) &#123;</span><br><span class="line">               &#x2F;&#x2F; we can cancel the slot request because it has been fulfilled</span><br><span class="line">               cancelPendingSlotRequest(pendingSlotRequest);</span><br><span class="line"></span><br><span class="line">               &#x2F;&#x2F; remove the pending slot request, since it has been completed</span><br><span class="line">               pendingSlotRequests.remove(pendingSlotRequest.getAllocationId());</span><br><span class="line"></span><br><span class="line">               slot.completeAllocation(allocationId, jobId);</span><br><span class="line">            &#125; else &#123;</span><br><span class="line">               &#x2F;&#x2F; we first have to free the slot in order to set a new allocationId</span><br><span class="line">               slot.clearPendingSlotRequest();</span><br><span class="line">               &#x2F;&#x2F; set the allocation id such that the slot won&#39;t be considered for the pending slot request</span><br><span class="line">               slot.updateAllocation(allocationId, jobId);</span><br><span class="line"></span><br><span class="line">               &#x2F;&#x2F; remove the pending request if any as it has been assigned</span><br><span class="line">               final PendingSlotRequest actualPendingSlotRequest &#x3D; pendingSlotRequests.remove(allocationId);</span><br><span class="line"></span><br><span class="line">               if (actualPendingSlotRequest !&#x3D; null) &#123;</span><br><span class="line">                  cancelPendingSlotRequest(actualPendingSlotRequest);</span><br><span class="line">               &#125;</span><br><span class="line"></span><br><span class="line">               &#x2F;&#x2F; this will try to find a new slot for the request</span><br><span class="line">               rejectPendingSlotRequest(</span><br><span class="line">                  pendingSlotRequest,</span><br><span class="line">                  new Exception(&quot;Task manager reported slot &quot; + slot.getSlotId() + &quot; being already allocated.&quot;));</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            taskManagerRegistration.occupySlot();</span><br><span class="line">            break;</span><br><span class="line">         case ALLOCATED:</span><br><span class="line">            if (!Objects.equals(allocationId, slot.getAllocationId())) &#123;</span><br><span class="line">               slot.freeSlot();</span><br><span class="line">               slot.updateAllocation(allocationId, jobId);</span><br><span class="line">            &#125;</span><br><span class="line">            break;</span><br><span class="line">         case FREE:</span><br><span class="line">            &#x2F;&#x2F; the slot is currently free --&gt; it is stored in freeSlots</span><br><span class="line">            freeSlots.remove(slot.getSlotId());</span><br><span class="line">            slot.updateAllocation(allocationId, jobId);</span><br><span class="line">            taskManagerRegistration.occupySlot();</span><br><span class="line">            break;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      fulfilledSlotRequests.put(allocationId, slot.getSlotId());</span><br><span class="line">   &#125; else &#123;</span><br><span class="line">      &#x2F;&#x2F; no allocation reported</span><br><span class="line">      switch (slot.getState()) &#123;</span><br><span class="line">         case FREE:</span><br><span class="line">            handleFreeSlot(slot);</span><br><span class="line">            break;</span><br><span class="line">         case PENDING:</span><br><span class="line">            &#x2F;&#x2F; don&#39;t do anything because we still have a pending slot request</span><br><span class="line">            break;</span><br><span class="line">         case ALLOCATED:</span><br><span class="line">            AllocationID oldAllocation &#x3D; slot.getAllocationId();</span><br><span class="line">            slot.freeSlot();</span><br><span class="line">            fulfilledSlotRequests.remove(oldAllocation);</span><br><span class="line">            taskManagerRegistration.freeSlot();</span><br><span class="line"></span><br><span class="line">            handleFreeSlot(slot);</span><br><span class="line">            break;</span><br><span class="line">      &#125;</span><br><span class="line">   &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>最后看下TaskSlot，这是TaskManager对slot的封装类，有Releasing，Allocated，Active，Free四种状态，初始状态为Allocated</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">public class TaskSlot&lt;T extends TaskSlotPayload&gt; implements AutoCloseableAsync &#123;</span><br><span class="line">   private static final Logger LOG &#x3D; LoggerFactory.getLogger(TaskSlot.class);</span><br><span class="line"></span><br><span class="line">   &#x2F;** Index of the task slot. *&#x2F;</span><br><span class="line">   private final int index;</span><br><span class="line"></span><br><span class="line">   &#x2F;** Resource characteristics for this slot. *&#x2F;</span><br><span class="line">   private final ResourceProfile resourceProfile;</span><br><span class="line"></span><br><span class="line">   &#x2F;** Tasks running in this slot. *&#x2F;</span><br><span class="line">   private final Map&lt;ExecutionAttemptID, T&gt; tasks;</span><br><span class="line"></span><br><span class="line">   private final MemoryManager memoryManager;</span><br><span class="line"></span><br><span class="line">   &#x2F;** State of this slot. *&#x2F;</span><br><span class="line">   private TaskSlotState state;</span><br><span class="line"></span><br><span class="line">   &#x2F;** Job id to which the slot has been allocated. *&#x2F;</span><br><span class="line">   private final JobID jobId;</span><br><span class="line"></span><br><span class="line">   &#x2F;** Allocation id of this slot. *&#x2F;</span><br><span class="line">   private final AllocationID allocationId;</span><br><span class="line"></span><br><span class="line">   &#x2F;** The closing future is completed when the slot is freed and closed. *&#x2F;</span><br><span class="line">   private final CompletableFuture&lt;Void&gt; closingFuture;</span><br></pre></td></tr></table></figure>
+
+<p>TaskSlot可以管理task</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">public boolean add(T task) &#123;</span><br><span class="line">   &#x2F;&#x2F; Check that this slot has been assigned to the job sending this task</span><br><span class="line">   Preconditions.checkArgument(task.getJobID().equals(jobId), &quot;The task&#39;s job id does not match the &quot; +</span><br><span class="line">      &quot;job id for which the slot has been allocated.&quot;);</span><br><span class="line">   Preconditions.checkArgument(task.getAllocationId().equals(allocationId), &quot;The task&#39;s allocation &quot; +</span><br><span class="line">      &quot;id does not match the allocation id for which the slot has been allocated.&quot;);</span><br><span class="line">   Preconditions.checkState(TaskSlotState.ACTIVE &#x3D;&#x3D; state, &quot;The task slot is not in state active.&quot;);</span><br><span class="line"></span><br><span class="line">   T oldTask &#x3D; tasks.put(task.getExecutionId(), task);</span><br><span class="line"></span><br><span class="line">   if (oldTask !&#x3D; null) &#123;</span><br><span class="line">      tasks.put(task.getExecutionId(), oldTask);</span><br><span class="line">      return false;</span><br><span class="line">   &#125; else &#123;</span><br><span class="line">      return true;</span><br><span class="line">   &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>已上是TaskManager向Resoucemanager上报slot状态的过程，下面看一下TaskManager和job manager的交互过程。</p>
+<p>在前文中提到，在 Slot 被分配给之后，TaskExecutor 需要将对应的 slot 提供给 JobManager，通过offerSlotsToJobManager方法实现，其中调用了jobMasterGateway的offerSlots,jobMasterGateway继承自FencedRpcGateway。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">CompletableFuture&lt;Collection&lt;SlotOffer&gt;&gt; acceptedSlotsFuture &#x3D; jobMasterGateway.offerSlots(</span><br><span class="line">   getResourceID(),</span><br><span class="line">   reservedSlots,</span><br><span class="line">   taskManagerConfiguration.getTimeout());</span><br></pre></td></tr></table></figure>
+
+<p>JobMasterGateway实现类为JobMaster,进入JobMaster的offerSlots</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">public CompletableFuture&lt;Collection&lt;SlotOffer&gt;&gt; offerSlots(</span><br><span class="line">      final ResourceID taskManagerId,</span><br><span class="line">      final Collection&lt;SlotOffer&gt; slots,</span><br><span class="line">      final Time timeout) &#123;</span><br><span class="line"></span><br><span class="line">   Tuple2&lt;TaskManagerLocation, TaskExecutorGateway&gt; taskManager &#x3D; registeredTaskManagers.get(taskManagerId);</span><br><span class="line"></span><br><span class="line">   if (taskManager &#x3D;&#x3D; null) &#123;</span><br><span class="line">      return FutureUtils.completedExceptionally(new Exception(&quot;Unknown TaskManager &quot; + taskManagerId));</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   final TaskManagerLocation taskManagerLocation &#x3D; taskManager.f0;</span><br><span class="line">   final TaskExecutorGateway taskExecutorGateway &#x3D; taskManager.f1;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;建立TaskManager的Gateway</span><br><span class="line">   final RpcTaskManagerGateway rpcTaskManagerGateway &#x3D; new RpcTaskManagerGateway(taskExecutorGateway, getFencingToken());</span><br><span class="line"></span><br><span class="line">   return CompletableFuture.completedFuture(</span><br><span class="line">      slotPool.offerSlots(</span><br><span class="line">         taskManagerLocation,</span><br><span class="line">         rpcTaskManagerGateway,</span><br><span class="line">         slots));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>JobMaster里管理slot的类是SlotPool，进入SlotPool的offerSlots</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">public Collection&lt;SlotOffer&gt; offerSlots(</span><br><span class="line">      TaskManagerLocation taskManagerLocation,</span><br><span class="line">      TaskManagerGateway taskManagerGateway,</span><br><span class="line">      Collection&lt;SlotOffer&gt; offers) &#123;</span><br><span class="line"></span><br><span class="line">   ArrayList&lt;SlotOffer&gt; result &#x3D; new ArrayList&lt;&gt;(offers.size());</span><br><span class="line">&#x2F;&#x2F;对每个SlotOffer请求依此调用offerSlot</span><br><span class="line">   for (SlotOffer offer : offers) &#123;</span><br><span class="line">      if (offerSlot(</span><br><span class="line">         taskManagerLocation,</span><br><span class="line">         taskManagerGateway,</span><br><span class="line">         offer)) &#123;</span><br><span class="line"></span><br><span class="line">         result.add(offer);</span><br><span class="line">      &#125;</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   return result;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br></pre></td><td class="code"><pre><span class="line">boolean offerSlot(</span><br><span class="line">      final TaskManagerLocation taskManagerLocation,</span><br><span class="line">      final TaskManagerGateway taskManagerGateway,</span><br><span class="line">      final SlotOffer slotOffer) &#123;</span><br><span class="line"></span><br><span class="line">   componentMainThreadExecutor.assertRunningInMainThread();</span><br><span class="line"></span><br><span class="line">   &#x2F;&#x2F; check if this TaskManager is valid</span><br><span class="line">   final ResourceID resourceID &#x3D; taskManagerLocation.getResourceID();</span><br><span class="line">   final AllocationID allocationID &#x3D; slotOffer.getAllocationId();</span><br><span class="line"></span><br><span class="line">   if (!registeredTaskManagers.contains(resourceID)) &#123;</span><br><span class="line">      log.debug(&quot;Received outdated slot offering [&#123;&#125;] from unregistered TaskManager: &#123;&#125;&quot;,</span><br><span class="line">            slotOffer.getAllocationId(), taskManagerLocation);</span><br><span class="line">      return false;</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   &#x2F;&#x2F; check whether we have already using this slot</span><br><span class="line">   AllocatedSlot existingSlot;</span><br><span class="line">   &#x2F;&#x2F;是否已接收该slot</span><br><span class="line">   if ((existingSlot &#x3D; allocatedSlots.get(allocationID)) !&#x3D; null ||</span><br><span class="line">      (existingSlot &#x3D; availableSlots.get(allocationID)) !&#x3D; null) &#123;</span><br><span class="line"></span><br><span class="line">      &#x2F;&#x2F; we need to figure out if this is a repeated offer for the exact same slot,</span><br><span class="line">      &#x2F;&#x2F; or another offer that comes from a different TaskManager after the ResourceManager</span><br><span class="line">      &#x2F;&#x2F; re-tried the request</span><br><span class="line"></span><br><span class="line">      &#x2F;&#x2F; we write this in terms of comparing slot IDs, because the Slot IDs are the identifiers of</span><br><span class="line">      &#x2F;&#x2F; the actual slots on the TaskManagers</span><br><span class="line">      &#x2F;&#x2F; Note: The slotOffer should have the SlotID</span><br><span class="line">      final SlotID existingSlotId &#x3D; existingSlot.getSlotId();</span><br><span class="line">      final SlotID newSlotId &#x3D; new SlotID(taskManagerLocation.getResourceID(), slotOffer.getSlotIndex());</span><br><span class="line"></span><br><span class="line">      if (existingSlotId.equals(newSlotId)) &#123;</span><br><span class="line">      &#x2F;&#x2F;发送了重复的Slot</span><br><span class="line">         log.info(&quot;Received repeated offer for slot [&#123;&#125;]. Ignoring.&quot;, allocationID);</span><br><span class="line"></span><br><span class="line">         &#x2F;&#x2F; return true here so that the sender will get a positive acknowledgement to the retry</span><br><span class="line">         &#x2F;&#x2F; and mark the offering as a success</span><br><span class="line">         return true;</span><br><span class="line">      &#125; else &#123;</span><br><span class="line">      &#x2F;&#x2F;jobmaster需要的slot已经被其他task executor提供的slot满足，则拒绝该slot，该slot最终会释放。</span><br><span class="line">         &#x2F;&#x2F; the allocation has been fulfilled by another slot, reject the offer so the task executor</span><br><span class="line">         &#x2F;&#x2F; will offer the slot to the resource manager</span><br><span class="line">         return false;</span><br><span class="line">      &#125;</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;创建AllocatedSlot，AllocatedSlot是jobmanager里对slot的封装。通过AllocationID 区分</span><br><span class="line">   final AllocatedSlot allocatedSlot &#x3D; new AllocatedSlot(</span><br><span class="line">      allocationID,</span><br><span class="line">      taskManagerLocation,</span><br><span class="line">      slotOffer.getSlotIndex(),</span><br><span class="line">      slotOffer.getResourceProfile(),</span><br><span class="line">      taskManagerGateway);</span><br><span class="line"></span><br><span class="line">   &#x2F;&#x2F; check whether we have request waiting for this slot</span><br><span class="line">   PendingRequest pendingRequest &#x3D; pendingRequests.removeKeyB(allocationID);</span><br><span class="line">   &#x2F;&#x2F; 检查是否有一个 request 和 这个 AllocationID 关联</span><br><span class="line">   if (pendingRequest !&#x3D; null) &#123;</span><br><span class="line">      &#x2F;&#x2F; we were waiting for this!</span><br><span class="line">      &#x2F;&#x2F;有一个pending request 正在等待这个 slot</span><br><span class="line">      allocatedSlots.add(pendingRequest.getSlotRequestId(), allocatedSlot);</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;尝试去完成那个等待的请求</span><br><span class="line">      if (!pendingRequest.getAllocatedSlotFuture().complete(allocatedSlot)) &#123;</span><br><span class="line">         &#x2F;&#x2F; we could not complete the pending slot future --&gt; try to fulfill another pending request</span><br><span class="line">         &#x2F;&#x2F;尝试失败</span><br><span class="line">         allocatedSlots.remove(pendingRequest.getSlotRequestId());</span><br><span class="line">         &#x2F;&#x2F;尝试去满足其他在等待的请求</span><br><span class="line">         tryFulfillSlotRequestOrMakeAvailable(allocatedSlot);</span><br><span class="line">      &#125; else &#123;</span><br><span class="line">         log.debug(&quot;Fulfilled slot request [&#123;&#125;] with allocated slot [&#123;&#125;].&quot;, pendingRequest.getSlotRequestId(), allocationID);</span><br><span class="line">      &#125;</span><br><span class="line">   &#125;</span><br><span class="line">   else &#123;</span><br><span class="line">   &#x2F;&#x2F;没有请求在等待这个slot，可能请求已经被满足了，尝试去满足其他在等待的请求</span><br><span class="line">      &#x2F;&#x2F; we were actually not waiting for this:</span><br><span class="line">      &#x2F;&#x2F;   - could be that this request had been fulfilled</span><br><span class="line">      &#x2F;&#x2F;   - we are receiving the slots from TaskManagers after becoming leaders</span><br><span class="line">      tryFulfillSlotRequestOrMakeAvailable(allocatedSlot);</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   &#x2F;&#x2F; we accepted the request in any case. slot will be released after it idled for</span><br><span class="line">   &#x2F;&#x2F; too long and timed out</span><br><span class="line">   return true;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>一旦有新的可用的 <code>AllocatedSlot</code> 的时候，<code>SlotPoolImpl</code> 会尝试用这个 <code>AllocatedSlot</code> 去提前满足其他还在等待响应的请求：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line">private void tryFulfillSlotRequestOrMakeAvailable(AllocatedSlot allocatedSlot) &#123;</span><br><span class="line">   Preconditions.checkState(!allocatedSlot.isUsed(), &quot;Provided slot is still in use.&quot;);</span><br><span class="line"></span><br><span class="line">&#x2F;查找和当前 AllocatedSlot 的计算资源相匹配的还在等待的请求</span><br><span class="line">   final PendingRequest pendingRequest &#x3D; pollMatchingPendingRequest(allocatedSlot);</span><br><span class="line"></span><br><span class="line">   if (pendingRequest !&#x3D; null) &#123;</span><br><span class="line">   &#x2F;&#x2F;如果有匹配的请求，那么将 AllocatedSlot 分配给等待的请求</span><br><span class="line">      log.debug(&quot;Fulfilling pending slot request [&#123;&#125;] early with returned slot [&#123;&#125;]&quot;,</span><br><span class="line">         pendingRequest.getSlotRequestId(), allocatedSlot.getAllocationId());</span><br><span class="line"></span><br><span class="line">      allocatedSlots.add(pendingRequest.getSlotRequestId(), allocatedSlot);</span><br><span class="line">      pendingRequest.getAllocatedSlotFuture().complete(allocatedSlot);</span><br><span class="line">   &#125; else &#123;</span><br><span class="line">   &#x2F;&#x2F;如果没有，那么这个 AllocatedSlot 变成 available 的</span><br><span class="line">      log.debug(&quot;Adding returned slot [&#123;&#125;] to available slots&quot;, allocatedSlot.getAllocationId());</span><br><span class="line">      availableSlots.add(allocatedSlot, clock.relativeTimeMillis());</span><br><span class="line">   &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">private PendingRequest pollMatchingPendingRequest(final AllocatedSlot slot) &#123;</span><br><span class="line">   final ResourceProfile slotResources &#x3D; slot.getResourceProfile();</span><br><span class="line"></span><br><span class="line">   &#x2F;&#x2F; try the requests sent to the resource manager first</span><br><span class="line">   for (PendingRequest request : pendingRequests.values()) &#123;</span><br><span class="line">      if (slotResources.isMatching(request.getResourceProfile())) &#123;</span><br><span class="line">         pendingRequests.removeKeyA(request.getSlotRequestId());</span><br><span class="line">         return request;</span><br><span class="line">      &#125;</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   &#x2F;&#x2F; try the requests waiting for a resource manager connection next</span><br><span class="line">   for (PendingRequest request : waitingForResourceManager.values()) &#123;</span><br><span class="line">      if (slotResources.isMatching(request.getResourceProfile())) &#123;</span><br><span class="line">         waitingForResourceManager.remove(request.getSlotRequestId());</span><br><span class="line">         return request;</span><br><span class="line">      &#125;</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   &#x2F;&#x2F; no request pending, or no request matches</span><br><span class="line">   return null;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><code>slotPool</code> 启动的时候会开启一个定时调度的任务，周期性地检查空闲的 slot，如果 slot 空闲时间过长，会将该 slot 归还给 TaskManager</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">public void start(</span><br><span class="line">   @Nonnull JobMasterId jobMasterId,</span><br><span class="line">   @Nonnull String newJobManagerAddress,</span><br><span class="line">   @Nonnull ComponentMainThreadExecutor componentMainThreadExecutor) throws Exception &#123;</span><br><span class="line"></span><br><span class="line">   this.jobMasterId &#x3D; jobMasterId;</span><br><span class="line">   this.jobManagerAddress &#x3D; newJobManagerAddress;</span><br><span class="line">   this.componentMainThreadExecutor &#x3D; componentMainThreadExecutor;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;检查空闲slot</span><br><span class="line">   scheduleRunAsync(this::checkIdleSlot, idleSlotTimeout);</span><br><span class="line">   scheduleRunAsync(this::checkBatchSlotTimeout, batchSlotTimeout);</span><br><span class="line"></span><br><span class="line">   if (log.isDebugEnabled()) &#123;</span><br><span class="line">      scheduleRunAsync(this::scheduledLogStatus, STATUS_LOG_INTERVAL_MS, TimeUnit.MILLISECONDS);</span><br><span class="line">   &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line">protected void checkIdleSlot() &#123;</span><br><span class="line"></span><br><span class="line">   &#x2F;&#x2F; The timestamp in SlotAndTimestamp is relative</span><br><span class="line">   final long currentRelativeTimeMillis &#x3D; clock.relativeTimeMillis();</span><br><span class="line"></span><br><span class="line">   final List&lt;AllocatedSlot&gt; expiredSlots &#x3D; new ArrayList&lt;&gt;(availableSlots.size());</span><br><span class="line"></span><br><span class="line">   for (SlotAndTimestamp slotAndTimestamp : availableSlots.availableSlots.values()) &#123;</span><br><span class="line">      if (currentRelativeTimeMillis - slotAndTimestamp.timestamp &gt; idleSlotTimeout.toMilliseconds()) &#123;</span><br><span class="line">         expiredSlots.add(slotAndTimestamp.slot);</span><br><span class="line">      &#125;</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   final FlinkException cause &#x3D; new FlinkException(&quot;Releasing idle slot.&quot;);</span><br><span class="line"></span><br><span class="line">   for (AllocatedSlot expiredSlot : expiredSlots) &#123;</span><br><span class="line">      final AllocationID allocationID &#x3D; expiredSlot.getAllocationId();</span><br><span class="line">      if (availableSlots.tryRemove(allocationID) !&#x3D; null) &#123;</span><br><span class="line">&#x2F;&#x2F;将空闲的 slot 归还给 TaskManager，调用TaskExecutor的freeSlot</span><br><span class="line">         log.info(&quot;Releasing idle slot [&#123;&#125;].&quot;, allocationID);</span><br><span class="line">         final CompletableFuture&lt;Acknowledge&gt; freeSlotFuture &#x3D; expiredSlot.getTaskManagerGateway().freeSlot(</span><br><span class="line">            allocationID,</span><br><span class="line">            cause,</span><br><span class="line">            rpcTimeout);</span><br><span class="line"></span><br><span class="line">         FutureUtils.whenCompleteAsyncIfNotDone(</span><br><span class="line">            freeSlotFuture,</span><br><span class="line">            componentMainThreadExecutor,</span><br><span class="line">            (Acknowledge ignored, Throwable throwable) -&gt; &#123;</span><br><span class="line">               if (throwable !&#x3D; null) &#123;</span><br><span class="line">                  &#x2F;&#x2F; The slot status will be synced to task manager in next heartbeat.</span><br><span class="line">                  log.debug(&quot;Releasing slot [&#123;&#125;] of registered TaskExecutor &#123;&#125; failed. Discarding slot.&quot;,</span><br><span class="line">                           allocationID, expiredSlot.getTaskManagerId(), throwable);</span><br><span class="line">               &#125;</span><br><span class="line">            &#125;);</span><br><span class="line">      &#125;</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   scheduleRunAsync(this::checkIdleSlot, idleSlotTimeout);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2020/06/12/selenium%E8%87%AA%E5%8A%A8%E5%88%A0%E9%99%A4%E5%BE%AE%E5%8D%9A/" rel="next" title="selenium自动删除微博">
+                <i class="fa fa-chevron-left"></i> selenium自动删除微博
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+
+      <section class="site-overview-wrap sidebar-panel sidebar-panel-active">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">HH KKs</p>
+              <p class="site-description motion-element" itemprop="description"></p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">14</span>
+                  <span class="site-state-item-name">posts</span>
+                </a>
+              </div>
+            
+
+            
+
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">HH KKs</span>
+
+  
+</div>
+
+
+  <div class="powered-by">Powered by <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a></div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">Theme &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Muse</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

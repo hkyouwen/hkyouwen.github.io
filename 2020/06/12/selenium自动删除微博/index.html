@@ -79,15 +79,15 @@
 
 
 
-<meta name="description" content="Welcome to Hexo! This is your very first post. Check documentation for more info. If you get any problems when using Hexo, you can find the answer in troubleshooting or you can ask me on GitHub. Quick">
+<meta name="description" content="最近微博账号被盗用，莫名发了很多广告的微博。占据了前面几页，导致别人访问我的微博印象很不好。数了数大约前100条微博都是垃圾内容，如果手动一个一个删除会相当累。于是想用python实现一个自动删除微博内容的代码，搜了一下用selenium的webdriver模拟鼠标的点击删除操作是一个可行的方法。​    代码比较简单，因为我这里模拟了chrome浏览器，所以要下载与本机chrome浏览器版本一致">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Hello World">
-<meta property="og:url" content="http://yoursite.com/2020/03/23/hello-world/index.html">
+<meta property="og:title" content="selenium自动删除微博">
+<meta property="og:url" content="http://yoursite.com/2020/06/12/selenium%E8%87%AA%E5%8A%A8%E5%88%A0%E9%99%A4%E5%BE%AE%E5%8D%9A/index.html">
 <meta property="og:site_name" content="HK书屋">
-<meta property="og:description" content="Welcome to Hexo! This is your very first post. Check documentation for more info. If you get any problems when using Hexo, you can find the answer in troubleshooting or you can ask me on GitHub. Quick">
+<meta property="og:description" content="最近微博账号被盗用，莫名发了很多广告的微博。占据了前面几页，导致别人访问我的微博印象很不好。数了数大约前100条微博都是垃圾内容，如果手动一个一个删除会相当累。于是想用python实现一个自动删除微博内容的代码，搜了一下用selenium的webdriver模拟鼠标的点击删除操作是一个可行的方法。​    代码比较简单，因为我这里模拟了chrome浏览器，所以要下载与本机chrome浏览器版本一致">
 <meta property="og:locale" content="en_US">
-<meta property="article:published_time" content="2020-03-23T02:47:13.824Z">
-<meta property="article:modified_time" content="2020-03-23T02:47:13.824Z">
+<meta property="article:published_time" content="2020-06-12T07:14:47.640Z">
+<meta property="article:modified_time" content="2020-06-12T08:27:19.165Z">
 <meta property="article:author" content="HH KKs">
 <meta name="twitter:card" content="summary">
 
@@ -119,13 +119,13 @@
 
 
 
-  <link rel="canonical" href="http://yoursite.com/2020/03/23/hello-world/"/>
+  <link rel="canonical" href="http://yoursite.com/2020/06/12/selenium自动删除微博/"/>
 
 
 
 
 
-  <title>Hello World | HK书屋</title>
+  <title>selenium自动删除微博 | HK书屋</title>
   
 
 
@@ -262,7 +262,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/03/23/hello-world/">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/06/12/selenium%E8%87%AA%E5%8A%A8%E5%88%A0%E9%99%A4%E5%BE%AE%E5%8D%9A/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="HH KKs">
@@ -279,7 +279,7 @@
 
         
         
-          <h1 class="post-title" itemprop="name headline">Hello World</h1>
+          <h1 class="post-title" itemprop="name headline">selenium自动删除微博</h1>
         
 
         <div class="post-meta">
@@ -291,8 +291,8 @@
               
                 <span class="post-meta-item-text">Posted on</span>
               
-              <time title="Post created" itemprop="dateCreated datePublished" datetime="2020-03-23T10:47:13+08:00">
-                2020-03-23
+              <time title="Post created" itemprop="dateCreated datePublished" datetime="2020-06-12T15:14:47+08:00">
+                2020-06-12
               </time>
             
 
@@ -329,19 +329,14 @@
       
 
       
-        <p>Welcome to <a href="https://hexo.io/" target="_blank" rel="noopener">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/" target="_blank" rel="noopener">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html" target="_blank" rel="noopener">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues" target="_blank" rel="noopener">GitHub</a>.</p>
-<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new <span class="string">"My New Post"</span></span><br></pre></td></tr></table></figure>
+        <pre><code>最近微博账号被盗用，莫名发了很多广告的微博。占据了前面几页，导致别人访问我的微博印象很不好。数了数大约前100条微博都是垃圾内容，如果手动一个一个删除会相当累。于是想用python实现一个自动删除微博内容的代码，搜了一下用selenium的webdriver模拟鼠标的点击删除操作是一个可行的方法。</code></pre><p>​    代码比较简单，因为我这里模拟了chrome浏览器，所以要下载与本机chrome浏览器版本一致的chromedriver并放入chrome浏览器的安装路径。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line">from selenium import webdriver</span><br><span class="line">import time</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">class WeiboCrawler:</span><br><span class="line"></span><br><span class="line">    def __init__(self):</span><br><span class="line">        self.chrome_driver &#x3D; &#39;C:\Program Files (x86)\Google\Chrome\Application\chromedriver.exe&#39;</span><br><span class="line">        self.browser &#x3D; webdriver.Chrome(executable_path&#x3D;self.chrome_driver)  ##控制谷歌浏览器</span><br><span class="line">        self.browser.get(&#39;http:&#x2F;&#x2F;weibo.com&#x2F;login.php&#39;)  ## 打开微博</span><br><span class="line">        self.browser.maximize_window()</span><br><span class="line"></span><br><span class="line">    def login(self, user, pasw, numb):</span><br><span class="line">        self.browser.find_element_by_xpath(&#39;&#x2F;&#x2F;*[@id&#x3D;&quot;loginname&quot;]&#39;).send_keys(user)</span><br><span class="line">        # 把密码填入</span><br><span class="line">        self.browser.find_element_by_xpath(&#39;&#x2F;&#x2F;*[@id&#x3D;&quot;pl_login_form&quot;]&#x2F;div&#x2F;div[3]&#x2F;div[2]&#x2F;div&#x2F;input&#39;).send_keys(pasw)</span><br><span class="line">        # 把记住我勾去掉</span><br><span class="line">        self.browser.find_element_by_xpath(&#39;&#x2F;&#x2F;*[@id&#x3D;&quot;login_form_savestate&quot;]&#39;).click()</span><br><span class="line"></span><br><span class="line">        # 点击登录按钮</span><br><span class="line">        self.browser.find_element_by_xpath(&#39;&#x2F;&#x2F;*[@id&#x3D;&quot;pl_login_form&quot;]&#x2F;div&#x2F;div[3]&#x2F;div[6]&#x2F;a&#39;).click()</span><br><span class="line">        time.sleep(4)</span><br><span class="line"></span><br><span class="line">        print(&quot;登陆成功&quot;)</span><br><span class="line">        self.del_start(numb)</span><br><span class="line"></span><br><span class="line">    def del_start(self, numb):</span><br><span class="line">    #进入我的主页</span><br><span class="line">        self.browser.find_element_by_xpath(&#39;&#x2F;&#x2F;*[@id&#x3D;&quot;v6_pl_rightmod_myinfo&quot;]&#x2F;div&#x2F;div&#x2F;div[2]&#x2F;ul&#x2F;li[3]&#x2F;a&#x2F;strong&#39;).click()</span><br><span class="line"></span><br><span class="line">        for i in range(0, numb):</span><br><span class="line">            time.sleep(3)</span><br><span class="line">            # 下拉菜单</span><br><span class="line">            self.browser.find_element_by_xpath(</span><br><span class="line">                &#39;&#x2F;&#x2F;*[@id&#x3D;&quot;Pl_Official_MyProfileFeed__20&quot;]&#x2F;div&#x2F;div[2]&#x2F;div[1]&#x2F;div[1]&#x2F;div&#x2F;a&#x2F;i&#39;).click()</span><br><span class="line">            # 点击删除按键</span><br><span class="line">            self.browser.find_element_by_xpath(</span><br><span class="line">                &#39;&#x2F;&#x2F;*[@id&#x3D;&quot;Pl_Official_MyProfileFeed__20&quot;]&#x2F;div&#x2F;div[2]&#x2F;div[1]&#x2F;div[1]&#x2F;div&#x2F;div&#x2F;ul&#x2F;li[1]&#x2F;a&#39;).click()</span><br><span class="line">            # 点击确认删除</span><br><span class="line">            self.browser.find_element_by_xpath(&quot;&#x2F;&#x2F;*[@id]&#x2F;div&#x2F;p[2]&#x2F;a[1]&#x2F;span&quot;).click()</span><br><span class="line">        self.browser.close()</span><br><span class="line">        print(&#39;微博已经清空&#39;)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">if __name__ &#x3D;&#x3D; &#39;__main__&#39;:</span><br><span class="line">    starttime &#x3D; time.time()</span><br><span class="line">    weiboCrawler &#x3D; WeiboCrawler()</span><br><span class="line">    n &#x3D; 20</span><br><span class="line">    weiboCrawler.login(&quot;微博账号&quot;, &quot;微博密码&quot;, n)</span><br><span class="line">    endtime &#x3D; time.time()</span><br><span class="line">    dtime &#x3D; endtime - starttime</span><br><span class="line">    print(&#39;删除完成&#39; + str(n) + &#39;篇微博&#39;)</span><br><span class="line">    print(&quot;程序运行时间：%.8s s&quot; % dtime)</span><br></pre></td></tr></table></figure>
 
-<p>More info: <a href="https://hexo.io/docs/writing.html" target="_blank" rel="noopener">Writing</a></p>
-<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a href="https://hexo.io/docs/server.html" target="_blank" rel="noopener">Server</a></p>
-<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a href="https://hexo.io/docs/generating.html" target="_blank" rel="noopener">Generating</a></p>
-<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a href="https://hexo.io/docs/one-command-deployment.html" target="_blank" rel="noopener">Deployment</a></p>
+<p>​    直接运行即可，主要就是模拟登录及拿到各个事件的标识并点击。有一个问题，点击登录按钮这里如果操作比较频繁，会弹出输入验证码的窗口，造成登录超时拿不到我的主页的标识。可以重复运行试一下，或者注释掉自动点击登录，多sleep几秒，然后手动点击登录窗并输入验证码。</p>
+<p>运行结果如下，微博瞬间清静了很多：</p>
+<blockquote>
+<p>登陆成功<br>微博已经清空<br>删除完成20篇微博<br>程序运行时间：75.53805 s</p>
+</blockquote>
 
       
     </div>
@@ -366,14 +361,18 @@
         <div class="post-nav">
           <div class="post-nav-next post-nav-item">
             
+              <a href="/2020/06/09/Flink%E7%9A%84miniCluster%E5%90%AF%E5%8A%A8%E8%BF%87%E7%A8%8B/" rel="next" title="Flink的miniCluster启动过程">
+                <i class="fa fa-chevron-left"></i> Flink的miniCluster启动过程
+              </a>
+            
           </div>
 
           <span class="post-nav-divider"></span>
 
           <div class="post-nav-prev post-nav-item">
             
-              <a href="/2020/03/23/TwoPhaseCommitSinkFunction/" rel="prev" title="TwoPhaseCommitSinkFunction">
-                TwoPhaseCommitSinkFunction <i class="fa fa-chevron-right"></i>
+              <a href="/2020/06/18/TaskManager%E4%B8%8A%E6%8A%A5slot%E8%B5%84%E6%BA%90%E7%AE%A1%E7%90%86/" rel="prev" title="TaskManager上报slot资源管理">
+                TaskManager上报slot资源管理 <i class="fa fa-chevron-right"></i>
               </a>
             
           </div>
@@ -426,17 +425,8 @@
       
 
       
-        <ul class="sidebar-nav motion-element">
-          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
-            Table of Contents
-          </li>
-          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
-            Overview
-          </li>
-        </ul>
-      
 
-      <section class="site-overview-wrap sidebar-panel">
+      <section class="site-overview-wrap sidebar-panel sidebar-panel-active">
         <div class="site-overview">
           <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
             
@@ -478,22 +468,6 @@
         </div>
       </section>
 
-      
-      <!--noindex-->
-        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
-          <div class="post-toc">
-
-            
-              
-            
-
-            
-              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Quick-Start"><span class="nav-number">1.</span> <span class="nav-text">Quick Start</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Create-a-new-post"><span class="nav-number">1.1.</span> <span class="nav-text">Create a new post</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Run-server"><span class="nav-number">1.2.</span> <span class="nav-text">Run server</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Generate-static-files"><span class="nav-number">1.3.</span> <span class="nav-text">Generate static files</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Deploy-to-remote-sites"><span class="nav-number">1.4.</span> <span class="nav-text">Deploy to remote sites</span></a></li></ol></li></ol></div>
-            
-
-          </div>
-        </section>
-      <!--/noindex-->
       
 
       

@@ -259,6 +259,382 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/04/07/zeppelin%E7%9A%84sql%E8%A7%A3%E6%9E%90%E5%88%9D%E6%8E%A2/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="HH KKs">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="HK书屋">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2020/04/07/zeppelin%E7%9A%84sql%E8%A7%A3%E6%9E%90%E5%88%9D%E6%8E%A2/" itemprop="url">zeppelin的sql解析初探</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">Posted on</span>
+              
+              <time title="Post created" itemprop="dateCreated datePublished" datetime="2020-04-07T10:37:19+08:00">
+                2020-04-07
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>zeppelin 0.9版本支持引入了对sql的支持，可以直接在notebook通过DDL语句创建输入和输出的table。</p>
+<p><img src="/2020/04/07/zeppelin%E7%9A%84sql%E8%A7%A3%E6%9E%90%E5%88%9D%E6%8E%A2/640.png" alt></p>
+<p>简单看了一下zeppelin把sql翻译成flink代码的原理。zeppelin中的flink的interpreter支持多种flink的api:</p>
+<p><img src="/2020/04/07/zeppelin%E7%9A%84sql%E8%A7%A3%E6%9E%90%E5%88%9D%E6%8E%A2/1.png" alt></p>
+<p>其中%flink.bsql和%flink.ssql对应sql类型的interpreter，以bsql为例，bsql的入口类为org.apache.zeppelin.flink.FlinkBatchSqlInterpreter。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">public class FlinkBatchSqlInterpreter extends FlinkSqlInterrpeter</span><br></pre></td></tr></table></figure>
+
+<p>FlinkBatchSqlInterpreter继承自FlinkSqlInterrpeter，所以主要解析逻辑在FlinkSqlInterrpeter</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">public InterpreterResult interpret(String st,</span><br><span class="line">                                     InterpreterContext context) throws InterpreterException &#123;</span><br><span class="line">    LOGGER.debug(&quot;Interpret code: &quot; + st);</span><br><span class="line">    flinkInterpreter.getZeppelinContext().setInterpreterContext(context);</span><br><span class="line">    flinkInterpreter.getZeppelinContext().setNoteGui(context.getNoteGui());</span><br><span class="line">    flinkInterpreter.getZeppelinContext().setGui(context.getGui());</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F; set ClassLoader of current Thread to be the ClassLoader of Flink scala-shell,</span><br><span class="line">    &#x2F;&#x2F; otherwise codegen will fail to find classes defined in scala-shell</span><br><span class="line">    ClassLoader originClassLoader &#x3D; Thread.currentThread().getContextClassLoader();</span><br><span class="line">    try &#123;</span><br><span class="line">      Thread.currentThread().setContextClassLoader(flinkInterpreter.getFlinkScalaShellLoader());</span><br><span class="line">      return runSqlList(st, context);</span><br><span class="line">    &#125; finally &#123;</span><br><span class="line">      Thread.currentThread().setContextClassLoader(originClassLoader);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>FlinkSqlInterrpeter的interpret方法为翻译入口，入参st即为notebook上键入的sql字符串。st被传入runSqlList方法。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">private InterpreterResult runSqlList(String st, InterpreterContext context) &#123;</span><br><span class="line">    currentConfigOptions.clear();</span><br><span class="line">    List&lt;String&gt; sqls &#x3D; sqlSplitter.splitSql(st);</span><br><span class="line">    for (String sql : sqls) &#123;</span><br><span class="line">      Optional&lt;SqlCommandParser.SqlCommandCall&gt; sqlCommand &#x3D; SqlCommandParser.parse(sql);</span><br><span class="line">      ......</span><br><span class="line">      try &#123;</span><br><span class="line">        callCommand(sqlCommand.get(), context);</span><br><span class="line">        context.out.flush();</span><br><span class="line">      &#125; catch (Throwable e) &#123;</span><br><span class="line">        ......</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>runSqlList将st分割成子语句并使用SqlCommandParser.parse解析语句，根据解析出的command类型如（CREATE TABLE，INSERT_INTO等）进行逻辑执行（callCommand）。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br></pre></td><td class="code"><pre><span class="line">public List&lt;String&gt; splitSql(String text) &#123;</span><br><span class="line">    text &#x3D; text.trim();</span><br><span class="line">    List&lt;String&gt; queries &#x3D; new ArrayList&lt;&gt;();</span><br><span class="line">    StringBuilder query &#x3D; new StringBuilder();</span><br><span class="line">    char character;</span><br><span class="line"></span><br><span class="line">    boolean multiLineComment &#x3D; false;</span><br><span class="line">    boolean singleLineComment &#x3D; false;</span><br><span class="line">    boolean singleQuoteString &#x3D; false;</span><br><span class="line">    boolean doubleQuoteString &#x3D; false;</span><br><span class="line"></span><br><span class="line">    for (int index &#x3D; 0; index &lt; text.length(); index++) &#123;</span><br><span class="line">      character &#x3D; text.charAt(index);</span><br><span class="line"></span><br><span class="line">      &#x2F;&#x2F; end of single line comment</span><br><span class="line">      if (singleLineComment &amp;&amp; (character &#x3D;&#x3D; &#39;\n&#39;)) &#123;</span><br><span class="line">        singleLineComment &#x3D; false;</span><br><span class="line">        if (query.toString().trim().isEmpty()) &#123;</span><br><span class="line">          continue;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      &#x2F;&#x2F; end of multiple line comment</span><br><span class="line">      if (multiLineComment &amp;&amp; character &#x3D;&#x3D; &#39;&#x2F;&#39; &amp;&amp; text.charAt(index - 1) &#x3D;&#x3D; &#39;*&#39;) &#123;</span><br><span class="line">        multiLineComment &#x3D; false;</span><br><span class="line">        if (query.toString().trim().isEmpty()) &#123;</span><br><span class="line">          continue;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      if (character &#x3D;&#x3D; &#39;\&#39;&#39;) &#123;</span><br><span class="line">        if (singleQuoteString) &#123;</span><br><span class="line">          singleQuoteString &#x3D; false;</span><br><span class="line">        &#125; else if (!doubleQuoteString) &#123;</span><br><span class="line">          singleQuoteString &#x3D; true;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      if (character &#x3D;&#x3D; &#39;&quot;&#39;) &#123;</span><br><span class="line">        if (doubleQuoteString &amp;&amp; index &gt; 0) &#123;</span><br><span class="line">          doubleQuoteString &#x3D; false;</span><br><span class="line">        &#125; else if (!singleQuoteString) &#123;</span><br><span class="line">          doubleQuoteString &#x3D; true;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      if (!singleQuoteString &amp;&amp; !doubleQuoteString &amp;&amp; !multiLineComment &amp;&amp; !singleLineComment</span><br><span class="line">              &amp;&amp; text.length() &gt; (index + 1)) &#123;</span><br><span class="line">        if (isSingleLineComment(text.charAt(index), text.charAt(index + 1))) &#123;</span><br><span class="line">          singleLineComment &#x3D; true;</span><br><span class="line">        &#125; else if (text.charAt(index) &#x3D;&#x3D; &#39;&#x2F;&#39; &amp;&amp; text.charAt(index + 1) &#x3D;&#x3D; &#39;*&#39;) &#123;</span><br><span class="line">          multiLineComment &#x3D; true;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      if (character &#x3D;&#x3D; &#39;;&#39; &amp;&amp; !singleQuoteString &amp;&amp; !doubleQuoteString &amp;&amp; !multiLineComment</span><br><span class="line">              &amp;&amp; !singleLineComment) &#123;</span><br><span class="line">        &#x2F;&#x2F; meet semicolon</span><br><span class="line">        queries.add(query.toString().trim());</span><br><span class="line">        query &#x3D; new StringBuilder();</span><br><span class="line">      &#125; else if (index &#x3D;&#x3D; (text.length() - 1)) &#123;</span><br><span class="line">        &#x2F;&#x2F; meet the last character</span><br><span class="line">        if (!singleLineComment &amp;&amp; !multiLineComment) &#123;</span><br><span class="line">          query.append(character);</span><br><span class="line">          queries.add(query.toString().trim());</span><br><span class="line">        &#125;</span><br><span class="line">      &#125; else if (!singleLineComment &amp;&amp; !multiLineComment) &#123;</span><br><span class="line">        &#x2F;&#x2F; normal case, not in single line comment and not in multiple line comment</span><br><span class="line">        query.append(character);</span><br><span class="line">      &#125; else if (singleLineComment &amp;&amp; !query.toString().trim().isEmpty()) &#123;</span><br><span class="line">        &#x2F;&#x2F; in single line comment, only add it to query when the single line comment is</span><br><span class="line">        &#x2F;&#x2F; in the middle of sql statement</span><br><span class="line">        &#x2F;&#x2F; e.g.</span><br><span class="line">        &#x2F;&#x2F; select a -- comment</span><br><span class="line">        &#x2F;&#x2F; from table_1</span><br><span class="line">        query.append(character);</span><br><span class="line">      &#125; else if (multiLineComment &amp;&amp; !query.toString().trim().isEmpty()) &#123;</span><br><span class="line">        &#x2F;&#x2F; in multiple line comment, only add it to query when the multiple line comment</span><br><span class="line">        &#x2F;&#x2F; is in the middle of sql statement.</span><br><span class="line">        &#x2F;&#x2F; e.g.</span><br><span class="line">        &#x2F;&#x2F; select a &#x2F;* comment *&#x2F;</span><br><span class="line">        &#x2F;&#x2F; from table_1</span><br><span class="line">        query.append(character);</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    return queries;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>st的分割过程，可以看注释内容，主要是逐个字符的遍历及’\n’和’;’及引号等符号还有注释内容的逻辑判断，最终得到各个自语句<code>List&lt;String&gt; queries</code>。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">public static Optional&lt;SqlCommandCall&gt; parse(String stmt) &#123;</span><br><span class="line">    &#x2F;&#x2F; normalize</span><br><span class="line">    stmt &#x3D; stmt.trim();</span><br><span class="line">    &#x2F;&#x2F; remove &#39;;&#39; at the end</span><br><span class="line">    if (stmt.endsWith(&quot;;&quot;)) &#123;</span><br><span class="line">      stmt &#x3D; stmt.substring(0, stmt.length() - 1).trim();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F; parse</span><br><span class="line">    for (SqlCommand cmd : SqlCommand.values()) &#123;</span><br><span class="line">      final Matcher matcher &#x3D; cmd.pattern.matcher(stmt);</span><br><span class="line">      if (matcher.matches()) &#123;</span><br><span class="line">        final String[] groups &#x3D; new String[matcher.groupCount()];</span><br><span class="line">        for (int i &#x3D; 0; i &lt; groups.length; i++) &#123;</span><br><span class="line">          groups[i] &#x3D; matcher.group(i + 1);</span><br><span class="line">        &#125;</span><br><span class="line">        final String sql &#x3D; stmt;</span><br><span class="line">        return cmd.operandConverter.apply(groups)</span><br><span class="line">                .map((operands) -&gt; new SqlCommandCall(cmd, operands, sql));</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    return Optional.empty();</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>逐个子语句解析，解析过程也比较简单，就是遍历各种SqlCommand，然后用正则表达式进行匹配看子语句中包含哪个类型的SqlCommand，。然后得到一个SqlCommandCall的类，包含命令名，被操作字符串及sql语句。</p>
+<p>其中被操作字符串operands由operandConverter来提取，分为NO_OPERANDS和SINGLE_OPERAND：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">private static final Function&lt;String[], Optional&lt;String[]&gt;&gt; NO_OPERANDS &#x3D;</span><br><span class="line">          (operands) -&gt; Optional.of(new String[0]);</span><br><span class="line"></span><br><span class="line">  private static final Function&lt;String[], Optional&lt;String[]&gt;&gt; SINGLE_OPERAND &#x3D;</span><br><span class="line">          (operands) -&gt; Optional.of(new String[]&#123;operands[0]&#125;);</span><br></pre></td></tr></table></figure>
+
+<p>NO_OPERANDS即不需要操作sql的命令，如HELP，QUIT，CLEAR等，SINGLE_OPERAND为操作单个字符串的命令，如CREATE TABLE，INSERT_INTO等，更复杂的命令要单独提取，如SET。命令的正则表达式及operandConverter示例如下所示：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line">public enum SqlCommand &#123;</span><br><span class="line">    QUIT(</span><br><span class="line">            &quot;(QUIT|EXIT)&quot;,</span><br><span class="line">            NO_OPERANDS),</span><br><span class="line"></span><br><span class="line">    CLEAR(</span><br><span class="line">            &quot;CLEAR&quot;,</span><br><span class="line">            NO_OPERANDS),</span><br><span class="line"></span><br><span class="line">   ......</span><br><span class="line"></span><br><span class="line">    CREATE_TABLE(&quot;(CREATE\\s+TABLE\\s+.*)&quot;, SINGLE_OPERAND),</span><br><span class="line"></span><br><span class="line">    DROP_TABLE(&quot;(DROP\\s+TABLE\\s+.*)&quot;, SINGLE_OPERAND),</span><br><span class="line"></span><br><span class="line">    CREATE_VIEW(</span><br><span class="line">            &quot;CREATE\\s+VIEW\\s+(\\S+)\\s+AS\\s+(.*)&quot;,</span><br><span class="line">            (operands) -&gt; &#123;</span><br><span class="line">              if (operands.length &lt; 2) &#123;</span><br><span class="line">                return Optional.empty();</span><br><span class="line">              &#125;</span><br><span class="line">              return Optional.of(new String[]&#123;operands[0], operands[1]&#125;);</span><br><span class="line">            &#125;),</span><br><span class="line"></span><br><span class="line">    ......</span><br><span class="line"></span><br><span class="line">    SET(</span><br><span class="line">            &quot;SET(\\s+(\\S+)\\s*&#x3D;(.*))?&quot;, &#x2F;&#x2F; whitespace is only ignored on the left side of &#39;&#x3D;&#39;</span><br><span class="line">            (operands) -&gt; &#123;</span><br><span class="line">              if (operands.length &lt; 3) &#123;</span><br><span class="line">                return Optional.empty();</span><br><span class="line">              &#125; else if (operands[0] &#x3D;&#x3D; null) &#123;</span><br><span class="line">                return Optional.of(new String[0]);</span><br><span class="line">              &#125;</span><br><span class="line">              return Optional.of(new String[]&#123;operands[1], operands[2]&#125;);</span><br><span class="line">            &#125;),</span><br><span class="line"></span><br><span class="line">    public final Pattern pattern;</span><br><span class="line">    public final Function&lt;String[], Optional&lt;String[]&gt;&gt; operandConverter;</span><br><span class="line"></span><br><span class="line">    SqlCommand(String matchingRegex, Function&lt;String[], Optional&lt;String[]&gt;&gt; operandConverter) &#123;</span><br><span class="line">      this.pattern &#x3D; Pattern.compile(matchingRegex, DEFAULT_PATTERN_FLAGS);</span><br><span class="line">      this.operandConverter &#x3D; operandConverter;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>解析完之后进入runSqlList的callCommand方法执行命令</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br></pre></td><td class="code"><pre><span class="line">private void callCommand(SqlCommandParser.SqlCommandCall cmdCall,</span><br><span class="line">                                       InterpreterContext context) throws Exception &#123;</span><br><span class="line">   switch (cmdCall.command) &#123;</span><br><span class="line">     case HELP:</span><br><span class="line">       callHelp(context);</span><br><span class="line">       break;</span><br><span class="line">     case SHOW_CATALOGS:</span><br><span class="line">       callShowCatalogs(context);</span><br><span class="line">       break;</span><br><span class="line">     case SHOW_DATABASES:</span><br><span class="line">       callShowDatabases(context);</span><br><span class="line">       break;</span><br><span class="line">     case SHOW_TABLES:</span><br><span class="line">       callShowTables(context);</span><br><span class="line">       break;</span><br><span class="line">     case SOURCE:</span><br><span class="line">       callSource(cmdCall.operands[0], context);</span><br><span class="line">       break;</span><br><span class="line">     case SHOW_FUNCTIONS:</span><br><span class="line">       callShowFunctions(context);</span><br><span class="line">       break;</span><br><span class="line">     case SHOW_MODULES:</span><br><span class="line">       callShowModules(context);</span><br><span class="line">       break;</span><br><span class="line">     case USE_CATALOG:</span><br><span class="line">       callUseCatalog(cmdCall.operands[0], context);</span><br><span class="line">       break;</span><br><span class="line">     case USE:</span><br><span class="line">       callUseDatabase(cmdCall.operands[0], context);</span><br><span class="line">       break;</span><br><span class="line">     case DESCRIBE:</span><br><span class="line">       callDescribe(cmdCall.operands[0], context);</span><br><span class="line">       break;</span><br><span class="line">     case EXPLAIN:</span><br><span class="line">       callExplain(cmdCall.operands[0], context);</span><br><span class="line">       break;</span><br><span class="line">     case SELECT:</span><br><span class="line">       callSelect(cmdCall.operands[0], context);</span><br><span class="line">       break;</span><br><span class="line">     case SET:</span><br><span class="line">       callSet(cmdCall.operands[0], cmdCall.operands[1], context);</span><br><span class="line">       break;</span><br><span class="line">     case INSERT_INTO:</span><br><span class="line">     case INSERT_OVERWRITE:</span><br><span class="line">       callInsertInto(cmdCall.operands[0], context);</span><br><span class="line">       break;</span><br><span class="line">     case CREATE_TABLE:</span><br><span class="line">       callCreateTable(cmdCall.operands[0], context);</span><br><span class="line">       break;</span><br><span class="line">     case DROP_TABLE:</span><br><span class="line">       callDropTable(cmdCall.operands[0], context);</span><br><span class="line">       break;</span><br><span class="line">     case CREATE_VIEW:</span><br><span class="line">       callCreateView(cmdCall.operands[0], cmdCall.operands[1], context);</span><br><span class="line">       break;</span><br><span class="line">     case DROP_VIEW:</span><br><span class="line">       callDropView(cmdCall.operands[0], context);</span><br><span class="line">       break;</span><br><span class="line">     case CREATE_DATABASE:</span><br><span class="line">       callCreateDatabase(cmdCall.operands[0], context);</span><br><span class="line">       break;</span><br><span class="line">     case DROP_DATABASE:</span><br><span class="line">       callDropDatabase(cmdCall.operands[0], context);</span><br><span class="line">       break;</span><br><span class="line">     case ALTER_DATABASE:</span><br><span class="line">       callAlterDatabase(cmdCall.operands[0], context);</span><br><span class="line">       break;</span><br><span class="line">     case ALTER_TABLE:</span><br><span class="line">       callAlterTable(cmdCall.operands[0], context);</span><br><span class="line">       break;</span><br><span class="line">     default:</span><br><span class="line">       throw new Exception(&quot;Unsupported command: &quot; + cmdCall.command);</span><br><span class="line">   &#125;</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure>
+
+<p>根据命令名调用不同的api。如CREATE TABLE命令调用callCreateTable</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">private void callCreateTable(String sql, InterpreterContext context) throws IOException &#123;</span><br><span class="line">    try &#123;</span><br><span class="line">      lock.lock();</span><br><span class="line">      this.tbenv.sqlUpdate(sql);</span><br><span class="line">    &#125; finally &#123;</span><br><span class="line">      if (lock.isHeldByCurrentThread()) &#123;</span><br><span class="line">        lock.unlock();</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    context.out.write(&quot;Table has been created.\n&quot;);</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>直接调用sqlUpdate api，则翻译成了flink1.10的flink sql代码。</p>
+<p>如上CREATE TABLE为通用逻辑，而SELECT则区分batch和stream</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">public void callSelect(String sql, InterpreterContext context) throws IOException &#123;</span><br><span class="line">    try &#123;</span><br><span class="line">      ......</span><br><span class="line">      callInnerSelect(sql, context);</span><br><span class="line">    &#125; finally &#123;</span><br><span class="line">      if (lock.isHeldByCurrentThread()) &#123;</span><br><span class="line">        lock.unlock();</span><br><span class="line">      &#125;</span><br><span class="line">    ......</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  public abstract void callInnerSelect(String sql, InterpreterContext context) throws IOException;</span><br></pre></td></tr></table></figure>
+
+<p>callInnerSelect为抽象方法</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">public void callInnerSelect(String sql, InterpreterContext context) throws IOException &#123;</span><br><span class="line">    Table table &#x3D; this.tbenv.sqlQuery(sql);</span><br><span class="line">    z.setCurrentSql(sql);</span><br><span class="line">    String result &#x3D; z.showData(table);</span><br><span class="line">    context.out.write(result);</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>上面为FlinkBatchSqlInterpreter的实现，比较简单直接调用sqlQuery即可</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br></pre></td><td class="code"><pre><span class="line">public void callInnerSelect(String sql, InterpreterContext context) throws IOException &#123;</span><br><span class="line">    String savepointDir &#x3D; context.getLocalProperties().get(&quot;savepointDir&quot;);</span><br><span class="line">    if (!StringUtils.isBlank(savepointDir)) &#123;</span><br><span class="line">      Object savepointPath &#x3D; flinkInterpreter.getZeppelinContext()</span><br><span class="line">              .angular(context.getParagraphId() + &quot;_savepointpath&quot;, context.getNoteId(), null);</span><br><span class="line">      if (savepointPath &#x3D;&#x3D; null) &#123;</span><br><span class="line">        LOGGER.info(&quot;savepointPath is null because it is the first run&quot;);</span><br><span class="line">      &#125; else &#123;</span><br><span class="line">        LOGGER.info(&quot;set savepointPath to: &quot; + savepointPath.toString());</span><br><span class="line">        this.flinkInterpreter.getFlinkConfiguration()</span><br><span class="line">                .setString(&quot;execution.savepoint.path&quot;, savepointPath.toString());</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    String streamType &#x3D; context.getLocalProperties().get(&quot;type&quot;);</span><br><span class="line">    if (streamType &#x3D;&#x3D; null) &#123;</span><br><span class="line">      throw new IOException(&quot;type must be specified for stream sql&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">    if (streamType.equalsIgnoreCase(&quot;single&quot;)) &#123;</span><br><span class="line">      SingleRowStreamSqlJob streamJob &#x3D; new SingleRowStreamSqlJob(</span><br><span class="line">              flinkInterpreter.getStreamExecutionEnvironment(),</span><br><span class="line">              tbenv,</span><br><span class="line">              flinkInterpreter.getJobManager(),</span><br><span class="line">              context,</span><br><span class="line">              flinkInterpreter.getDefaultParallelism());</span><br><span class="line">      streamJob.run(sql);</span><br><span class="line">    &#125; else if (streamType.equalsIgnoreCase(&quot;append&quot;)) &#123;</span><br><span class="line">      AppendStreamSqlJob streamJob &#x3D; new AppendStreamSqlJob(</span><br><span class="line">              flinkInterpreter.getStreamExecutionEnvironment(),</span><br><span class="line">              flinkInterpreter.getStreamTableEnvironment(),</span><br><span class="line">              flinkInterpreter.getJobManager(),</span><br><span class="line">              context,</span><br><span class="line">              flinkInterpreter.getDefaultParallelism());</span><br><span class="line">      streamJob.run(sql);</span><br><span class="line">    &#125; else if (streamType.equalsIgnoreCase(&quot;update&quot;)) &#123;</span><br><span class="line">      UpdateStreamSqlJob streamJob &#x3D; new UpdateStreamSqlJob(</span><br><span class="line">              flinkInterpreter.getStreamExecutionEnvironment(),</span><br><span class="line">              flinkInterpreter.getStreamTableEnvironment(),</span><br><span class="line">              flinkInterpreter.getJobManager(),</span><br><span class="line">              context,</span><br><span class="line">              flinkInterpreter.getDefaultParallelism());</span><br><span class="line">      streamJob.run(sql);</span><br><span class="line">    &#125; else &#123;</span><br><span class="line">      throw new IOException(&quot;Unrecognized stream type: &quot; + streamType);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>FlinkStreamSqlInterpreter的实现则更复杂，分append，update等模式，后面再研究。</p>
+<p>附上现有的SqlCommand类型</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">public static final AttributedString MESSAGE_HELP &#x3D; new AttributedStringBuilder()</span><br><span class="line">          .append(&quot;The following commands are available:\n\n&quot;)</span><br><span class="line">          .append(formatCommand(SqlCommand.CREATE_TABLE, &quot;Create table under current catalog and database.&quot;))</span><br><span class="line">          .append(formatCommand(SqlCommand.DROP_TABLE, &quot;Drop table with optional catalog and database. Syntax: &#39;DROP TABLE [IF EXISTS] &lt;name&gt;;&#39;&quot;))</span><br><span class="line">          .append(formatCommand(SqlCommand.CREATE_VIEW, &quot;Creates a virtual table from a SQL query. Syntax: &#39;CREATE VIEW &lt;name&gt; AS &lt;query&gt;;&#39;&quot;))</span><br><span class="line">          .append(formatCommand(SqlCommand.DESCRIBE, &quot;Describes the schema of a table with the given name.&quot;))</span><br><span class="line">          .append(formatCommand(SqlCommand.DROP_VIEW, &quot;Deletes a previously created virtual table. Syntax: &#39;DROP VIEW &lt;name&gt;;&#39;&quot;))</span><br><span class="line">          .append(formatCommand(SqlCommand.EXPLAIN, &quot;Describes the execution plan of a query or table with the given name.&quot;))</span><br><span class="line">          .append(formatCommand(SqlCommand.HELP, &quot;Prints the available commands.&quot;))</span><br><span class="line">          .append(formatCommand(SqlCommand.INSERT_INTO, &quot;Inserts the results of a SQL SELECT query into a declared table sink.&quot;))</span><br><span class="line">          .append(formatCommand(SqlCommand.INSERT_OVERWRITE, &quot;Inserts the results of a SQL SELECT query into a declared table sink and overwrite existing data.&quot;))</span><br><span class="line">          .append(formatCommand(SqlCommand.SELECT, &quot;Executes a SQL SELECT query on the Flink cluster.&quot;))</span><br><span class="line">          .append(formatCommand(SqlCommand.SET, &quot;Sets a session configuration property. Syntax: &#39;SET &lt;key&gt;&#x3D;&lt;value&gt;;&#39;. Use &#39;SET;&#39; for listing all properties.&quot;))</span><br><span class="line">          .append(formatCommand(SqlCommand.SHOW_FUNCTIONS, &quot;Shows all user-defined and built-in functions.&quot;))</span><br><span class="line">          .append(formatCommand(SqlCommand.SHOW_TABLES, &quot;Shows all registered tables.&quot;))</span><br><span class="line">          .append(formatCommand(SqlCommand.SOURCE, &quot;Reads a SQL SELECT query from a file and executes it on the Flink cluster.&quot;))</span><br><span class="line">          .append(formatCommand(SqlCommand.USE_CATALOG, &quot;Sets the current catalog. The current database is set to the catalog&#39;s default one. Experimental! Syntax: &#39;USE CATALOG &lt;name&gt;;&#39;&quot;))</span><br><span class="line">          .append(formatCommand(SqlCommand.USE, &quot;Sets the current default database. Experimental! Syntax: &#39;USE &lt;name&gt;;&#39;&quot;))</span><br><span class="line">          .style(AttributedStyle.DEFAULT.underline())</span><br><span class="line">          .append(&quot;\nHint&quot;)</span><br><span class="line">          .style(AttributedStyle.DEFAULT)</span><br><span class="line">          .append(&quot;: Make sure that a statement ends with &#39;;&#39; for finalizing (multi-line) statements.&quot;)</span><br><span class="line">          .toAttributedString();</span><br></pre></td></tr></table></figure>
+
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/03/30/DataSketches%20Theta%20Sketch%E7%AE%80%E4%BB%8B/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="HH KKs">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="HK书屋">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2020/03/30/DataSketches%20Theta%20Sketch%E7%AE%80%E4%BB%8B/" itemprop="url">DataSketches Theta Sketch简介</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">Posted on</span>
+              
+              <time title="Post created" itemprop="dateCreated datePublished" datetime="2020-03-30T18:44:06+08:00">
+                2020-03-30
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h3 id="DataSketches-Theta-Sketch简介"><a href="#DataSketches-Theta-Sketch简介" class="headerlink" title="DataSketches Theta Sketch简介"></a>DataSketches Theta Sketch简介</h3><h4 id="1-1DataSketches-Theta-Sketch概念"><a href="#1-1DataSketches-Theta-Sketch概念" class="headerlink" title="1.1DataSketches Theta Sketch概念"></a>1.1DataSketches Theta Sketch概念</h4><p>DataSketches Theta Sketch提供druid数据聚合，再数据摄入的过程创建存储在Druid sedments 上的Theta sketch objects，Theta sketch objects可以理解为一个Set的数据结构。在查询的过程，sketches 被读取并去重。最终，你得到一个sketch object内的元素去重之后的估计值，同时，你可以使用”postAggregations”对sketch object进行union，intersection和not操作。</p>
+<p>要使用DataSketches Theta Sketch，确保安装了扩展配置， druid.extensions.loadList=[“druid-datasketches”]</p>
+<p>DataSketches Theta Sketch更多介绍，参考：<br><a href="https://datasketches.github.io/docs/Theta/ThetaSketchFramework.html" target="_blank" rel="noopener">https://datasketches.github.io/docs/Theta/ThetaSketchFramework.html</a></p>
+<h4 id="1-2-DataSketches-Theta-Sketch原理"><a href="#1-2-DataSketches-Theta-Sketch原理" class="headerlink" title="1.2 DataSketches Theta Sketch原理"></a>1.2 DataSketches Theta Sketch原理</h4><p>DataSketches 是以Theta Sketch Framework (TSF) 框架为基础的。TSF是一个包含了多种sketching算法，并实现了多流数据之间进行集合运算的数学框架。TSF中包含了几个概念：<br>1，一个数据元组 (θ,S)，θ代表Theta，取值范围0&lt; θ &lt; 1，表示一个阈值。S代表Sketch，是一个数据集合，里面存储着不重复的哈希值x，x的取值范围也是0&lt;x&lt;1,并且x &lt; θ。也是Theta Sketch命名的由来。<br>2，一个通用的组合函数ThetaUnion，用来实现一组Theta Sketch的并集，交集和差值操作。<br>3，一个估值函数，根据Theta Sketch来估算出所有不重复的元素的数量。</p>
+<p>TSF的理论基础是KMV算法，先简单介绍一下KMV算法。KMV也就是Kth Minimum Value，字面理解就是用K个最小值来估计全部的元素数量。KMV主要解决去重计算中传统的hash算法随着元素数量增加而存储空间和查询时间不断增大的问题。KMV算法的策略是以存储更少的值（k 个值）为基础，从中可以估计出 N 的大小，而且误差范围固定。</p>
+<p>其中k值的大小对应上述TSF的Sketch的存储元素个数的上界，用来更新和淘汰Sketch中的元素，同时也决定了最终估计值的准确度。</p>
+<p><img src="/2020/03/30/DataSketches%20Theta%20Sketch%E7%AE%80%E4%BB%8B/555.png" alt></p>
+<p>上图是KMV的大致原理，假设最左边的输入流中有10个不重复的数字，首先在输入的过程中通过一个HASH函数将这10个数字的值均匀映射为10个大于0且小于1的值，对应上述TSF中的x值，在本例中为0.008到0.922。然后我们选定k值的大小为3，那么将只保留最小的3个哈希值，第k小的hash值就是0.195。最后运用估值函数计算预期结果，KMV的估值函数为(k-1)/Value(k),本例中即为(3-1)/0.195 = 10.26。准确估计出了假设值。</p>
+<p><img src="/2020/03/30/DataSketches%20Theta%20Sketch%E7%AE%80%E4%BB%8B/666.png" alt></p>
+<p>更近一步，选定了k值之后，大于k的那些hash值可以不需要存储，这样可以节省空间。这样当写入更小的hash时，将新的hash写入，同时更新及淘汰旧的Value(k)即可。需要说明的是如果插入的元素数量达不到k值，则估值就是已有的元素的数量。比如k=3，但<br>Sketch中只有两个hash，则估值结果就是2。</p>
+<p>TSF在KMV的基础上有些小的改动，增加了一个θ的值用来代替Value(k)，θ保存第k+1小的hash值，如果hash数量小于k，则θ值永远为1.0。 两外TSF将KMV中的分子(k-1)表示为S，S的定义是所有hash值小于θ值的hash元素集合。那么|S|就是所有hash值小于θ值的hash元素的数量。则TSF的估值函数就是|S|/θ。</p>
+<p><img src="/2020/03/30/DataSketches%20Theta%20Sketch%E7%AE%80%E4%BB%8B/777.png" alt></p>
+<p>还是用之前的示例，输入流中不重复元素个数为10，k=3，那么在TSF中，θ为Value(k+1)即0.386，S为所有小于0.386的hash值集合，所以|S|=3，估值为3/0.386。<br>同样在hash数量小于k时，例如为2时，也就是输入流中不重复元素个数为2时，此时|S|=2，θ值还是初始值为1.0，那么估值就是2/1.0=2。</p>
+<h3 id="2-DataSketches-Theta-Sketch语法"><a href="#2-DataSketches-Theta-Sketch语法" class="headerlink" title="2 DataSketches Theta Sketch语法"></a>2 DataSketches Theta Sketch语法</h3><h4 id="2-1数据摄入"><a href="#2-1数据摄入" class="headerlink" title="2.1数据摄入"></a>2.1数据摄入</h4><p>Aggregators：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">&quot;type&quot; : &quot;thetaSketch&quot;, </span><br><span class="line">&quot;name&quot; : &lt;output_name&gt;, </span><br><span class="line">&quot;fieldName&quot; : &lt;metric_name&gt;, </span><br><span class="line">&quot;isInputThetaSketch&quot;: false, </span><br><span class="line">&quot;size&quot;: 16384 </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+<table>
+<thead>
+<tr>
+<th>property</th>
+<th>description</th>
+<th>required?</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>type</td>
+<td>总是”thetaSketch”</td>
+<td>是</td>
+</tr>
+<tr>
+<td>name</td>
+<td>输出字段名称(String)</td>
+<td>是</td>
+</tr>
+<tr>
+<td>fieldName</td>
+<td>输入字段名称(String)</td>
+<td>是</td>
+</tr>
+<tr>
+<td>isInputThetaSketch</td>
+<td>只在摄入的数据中包含theta sketch objects时使用，即从druid之外的其他使用datasketchs库的系统向druid摄入数据的场景如：Pig/Hive</td>
+<td>否，默认false</td>
+</tr>
+<tr>
+<td>size</td>
+<td>2的倍数，代表要存储在theta sketch objects中的所有元素的个数。该值越大，准确度却高，需要消耗的存储空间也越大。当指定了某个特定的size值之后，druid会将sketch保存在segment中，查询只能使用&gt;=该size的值。 推荐使用默认值</td>
+<td>否，默认16384</td>
+</tr>
+</tbody></table>
+<p>示例：</p>
+<p>海量日志按uicid去重，注意这里摄入的”fieldName”:”uicIdNum”的值为具体的需要去重的id值，不是统计的数值：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">&quot;parser&quot;: &#123;</span><br><span class="line">      &quot;type&quot;: &quot;string&quot;,</span><br><span class="line">      &quot;parseSpec&quot;: &#123;</span><br><span class="line">        &quot;format&quot;: &quot;json&quot;,</span><br><span class="line">        &quot;timestampSpec&quot;: &#123;</span><br><span class="line">          &quot;column&quot;: &quot;fc_time&quot;,</span><br><span class="line">          &quot;format&quot;: &quot;yyyy-MM-dd HH:mm:ss&quot;</span><br><span class="line">        &#125;,</span><br><span class="line">        &quot;dimensionsSpec&quot;: &#123;</span><br><span class="line">          &quot;dimensions&quot;: [</span><br><span class="line">            &quot;bizDate&quot;,</span><br><span class="line">			&quot;hour&quot;,</span><br><span class="line">            &quot;project&quot;,</span><br><span class="line">            &quot;os&quot;,</span><br><span class="line">            &quot;eventId&quot;,</span><br><span class="line">            &quot;eventKey&quot;</span><br><span class="line">          ]</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;,</span><br><span class="line">    &quot;metricsSpec&quot;: [</span><br><span class="line">      &#123;</span><br><span class="line">        &quot;name&quot;: &quot;uicIdNum&quot;,</span><br><span class="line">        &quot;fieldName&quot;:&quot;uicIdNum&quot;,</span><br><span class="line">        &quot;type&quot;: &quot;thetaSketch&quot;</span><br><span class="line">      &#125;</span><br><span class="line">    ]</span><br></pre></td></tr></table></figure>
+
+<p><img src="/2020/03/30/DataSketches%20Theta%20Sketch%E7%AE%80%E4%BB%8B/%E4%BC%81%E4%B8%9A%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_1.png" alt></p>
+<h4 id="2-2数据查询"><a href="#2-2数据查询" class="headerlink" title="2.2数据查询"></a>2.2数据查询</h4><h5 id="2-2-1sql查询："><a href="#2-2-1sql查询：" class="headerlink" title="2.2.1sql查询："></a>2.2.1sql查询：</h5><p>sql查询Sketch的列，使用<strong>APPROX_COUNT_DISTINCT_DS_THETA</strong>函数</p>
+<p>![企业微信截图_15706191401896](d:\Users\002616\My Pictures\企业微信截图_15706191401896.png)</p>
+<p>示例：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">SELECT __time,os,APPROX_COUNT_DISTINCT_DS_THETA(uicIdNum) as uicIdNum</span><br><span class="line">FROM &quot;huge_log_funnel_analysis&quot;</span><br><span class="line">WHERE &quot;__time&quot; &gt;&#x3D; CURRENT_TIMESTAMP - INTERVAL &#39;1&#39; DAY</span><br><span class="line">GROUP BY __time,os</span><br></pre></td></tr></table></figure>
+<p><img src="/2020/03/30/DataSketches%20Theta%20Sketch%E7%AE%80%E4%BB%8B/%E4%BC%81%E4%B8%9A%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_2.png" alt></p>
+<h5 id="2-2-2json查询："><a href="#2-2-2json查询：" class="headerlink" title="2.2.2json查询："></a>2.2.2json查询：</h5><p>按小时去重ios人数：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  &quot;queryType&quot;: &quot;groupBy&quot;,</span><br><span class="line">  &quot;dataSource&quot;: &quot;huge_log_funnel_analysis&quot;,</span><br><span class="line">  &quot;granularity&quot;: &quot;hour&quot;,</span><br><span class="line">  &quot;dimensions&quot;: [],</span><br><span class="line">  &quot;aggregations&quot;: [</span><br><span class="line">    &#123; &quot;type&quot;: &quot;thetaSketch&quot;, &quot;name&quot;: &quot;uicIdNum&quot;, &quot;fieldName&quot;: &quot;uicIdNum&quot; &#125;</span><br><span class="line">  ],</span><br><span class="line">  &quot;filter&quot;: &#123; &quot;type&quot;: &quot;selector&quot;, &quot;dimension&quot;: &quot;os&quot;, &quot;value&quot;: &quot;ios&quot; &#125;,</span><br><span class="line">  &quot;intervals&quot;: [ &quot;2019-10-17T00:00:00.000Z&#x2F;2019-10-18T00:00:00.000Z&quot; ]</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="/2020/03/30/DataSketches%20Theta%20Sketch%E7%AE%80%E4%BB%8B/%E4%BC%81%E4%B8%9A%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_4.png" alt></p>
+<h4 id="2-3高级查询"><a href="#2-3高级查询" class="headerlink" title="2.3高级查询"></a>2.3高级查询</h4><p>通过Post Aggregators可实现UNION，INTERSECT，NOT查询</p>
+<h5 id="2-3-1-UNION查询："><a href="#2-3-1-UNION查询：" class="headerlink" title="2.3.1 UNION查询："></a>2.3.1 UNION查询：</h5><p>求android和ios使用人数并集：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  &quot;queryType&quot;: &quot;groupBy&quot;,</span><br><span class="line">  &quot;dataSource&quot;: &quot;huge_log_funnel_analysis&quot;,</span><br><span class="line">  &quot;granularity&quot;: &quot;hour&quot;,</span><br><span class="line">  &quot;dimensions&quot;: [],</span><br><span class="line">  &quot;filter&quot;: &#123;</span><br><span class="line">    &quot;type&quot;: &quot;or&quot;,</span><br><span class="line">    &quot;fields&quot;: [</span><br><span class="line">      &#123;&quot;type&quot;: &quot;selector&quot;, &quot;dimension&quot;: &quot;os&quot;, &quot;value&quot;: &quot;android&quot;&#125;,</span><br><span class="line">      &#123;&quot;type&quot;: &quot;selector&quot;, &quot;dimension&quot;: &quot;os&quot;, &quot;value&quot;: &quot;ios&quot;&#125;</span><br><span class="line">    ]</span><br><span class="line">  &#125;,</span><br><span class="line">  &quot;aggregations&quot;: [</span><br><span class="line">    &#123;</span><br><span class="line">      &quot;type&quot; : &quot;filtered&quot;,</span><br><span class="line">      &quot;filter&quot; : &#123;</span><br><span class="line">        &quot;type&quot; : &quot;selector&quot;,</span><br><span class="line">        &quot;dimension&quot; : &quot;os&quot;,</span><br><span class="line">        &quot;value&quot; : &quot;android&quot;</span><br><span class="line">      &#125;,</span><br><span class="line">      &quot;aggregator&quot; :     &#123;</span><br><span class="line">        &quot;type&quot;: &quot;thetaSketch&quot;, &quot;name&quot;: &quot;uicIdNumAndroid&quot;, &quot;fieldName&quot;: &quot;uicIdNum&quot;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;,</span><br><span class="line">    &#123;</span><br><span class="line">      &quot;type&quot; : &quot;filtered&quot;,</span><br><span class="line">      &quot;filter&quot; : &#123;</span><br><span class="line">        &quot;type&quot; : &quot;selector&quot;,</span><br><span class="line">        &quot;dimension&quot; : &quot;os&quot;,</span><br><span class="line">        &quot;value&quot; : &quot;ios&quot;</span><br><span class="line">      &#125;,</span><br><span class="line">      &quot;aggregator&quot; :     &#123;</span><br><span class="line">        &quot;type&quot;: &quot;thetaSketch&quot;, &quot;name&quot;: &quot;uicIdNumIos&quot;, &quot;fieldName&quot;: &quot;uicIdNum&quot;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  ],</span><br><span class="line">  &quot;postAggregations&quot;: [</span><br><span class="line">    &#123;</span><br><span class="line">      &quot;type&quot;: &quot;thetaSketchEstimate&quot;,</span><br><span class="line">      &quot;name&quot;: &quot;uicIdNum&quot;,</span><br><span class="line">      &quot;field&quot;:</span><br><span class="line">      &#123;</span><br><span class="line">        &quot;type&quot;: &quot;thetaSketchSetOp&quot;,</span><br><span class="line">        &quot;name&quot;: &quot;uicIdNum&quot;,</span><br><span class="line">        &quot;func&quot;: &quot;UNION&quot;,</span><br><span class="line">        &quot;fields&quot;: [</span><br><span class="line">          &#123;</span><br><span class="line">            &quot;type&quot;: &quot;fieldAccess&quot;,</span><br><span class="line">            &quot;fieldName&quot;: &quot;uicIdNumAndroid&quot;</span><br><span class="line">          &#125;,</span><br><span class="line">          &#123;</span><br><span class="line">            &quot;type&quot;: &quot;fieldAccess&quot;,</span><br><span class="line">            &quot;fieldName&quot;: &quot;uicIdNumIos&quot;</span><br><span class="line">          &#125;</span><br><span class="line">        ]</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  ],</span><br><span class="line">  &quot;intervals&quot;: [</span><br><span class="line">    &quot;2019-10-17T00:00:00.000Z&#x2F;2019-10-18T00:00:00.000Z&quot;</span><br><span class="line">  ]</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><img src="/2020/03/30/DataSketches%20Theta%20Sketch%E7%AE%80%E4%BB%8B/%E4%BC%81%E4%B8%9A%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_5.png" alt></p>
+<h5 id="2-3-2-INTERSECT："><a href="#2-3-2-INTERSECT：" class="headerlink" title="2.3.2 INTERSECT："></a>2.3.2 INTERSECT：</h5><p>android，ios使用人数交集</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">&quot;postAggregations&quot;: [</span><br><span class="line">    &#123;</span><br><span class="line">      &quot;type&quot;: &quot;thetaSketchEstimate&quot;,</span><br><span class="line">      &quot;name&quot;: &quot;uicIdNum&quot;,</span><br><span class="line">      &quot;field&quot;:</span><br><span class="line">      &#123;</span><br><span class="line">        &quot;type&quot;: &quot;thetaSketchSetOp&quot;,</span><br><span class="line">        &quot;name&quot;: &quot;uicIdNum&quot;,</span><br><span class="line">        &quot;func&quot;: &quot;INTERSECT&quot;,</span><br><span class="line">        &quot;fields&quot;: [</span><br><span class="line">          &#123;</span><br><span class="line">            &quot;type&quot;: &quot;fieldAccess&quot;,</span><br><span class="line">            &quot;fieldName&quot;: &quot;uicIdNumAndroid&quot;</span><br><span class="line">          &#125;,</span><br><span class="line">          &#123;</span><br><span class="line">            &quot;type&quot;: &quot;fieldAccess&quot;,</span><br><span class="line">            &quot;fieldName&quot;: &quot;uicIdNumIos&quot;</span><br><span class="line">          &#125;</span><br><span class="line">        ]</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  ],</span><br></pre></td></tr></table></figure>
+<p><img src="/2020/03/30/DataSketches%20Theta%20Sketch%E7%AE%80%E4%BB%8B/%E4%BC%81%E4%B8%9A%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_6.png" alt></p>
+<h5 id="2-3-3-NOT："><a href="#2-3-3-NOT：" class="headerlink" title="2.3.3 NOT："></a>2.3.3 NOT：</h5><p>只使用android不使用ios的人数，刚好等于android使用人数- 交集的人数</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">&quot;postAggregations&quot;: [</span><br><span class="line">    &#123;</span><br><span class="line">      &quot;type&quot;: &quot;thetaSketchEstimate&quot;,</span><br><span class="line">      &quot;name&quot;: &quot;uicIdNum&quot;,</span><br><span class="line">      &quot;field&quot;:</span><br><span class="line">      &#123;</span><br><span class="line">        &quot;type&quot;: &quot;thetaSketchSetOp&quot;,</span><br><span class="line">        &quot;name&quot;: &quot;uicIdNum&quot;,</span><br><span class="line">        &quot;func&quot;: &quot;NOT&quot;,</span><br><span class="line">        &quot;fields&quot;: [</span><br><span class="line">          &#123;</span><br><span class="line">            &quot;type&quot;: &quot;fieldAccess&quot;,</span><br><span class="line">            &quot;fieldName&quot;: &quot;uicIdNumAndroid&quot;</span><br><span class="line">          &#125;,</span><br><span class="line">          &#123;</span><br><span class="line">            &quot;type&quot;: &quot;fieldAccess&quot;,</span><br><span class="line">            &quot;fieldName&quot;: &quot;uicIdNumIos&quot;</span><br><span class="line">          &#125;</span><br><span class="line">        ]</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  ],</span><br></pre></td></tr></table></figure>
+
+<p><img src="/2020/03/30/DataSketches%20Theta%20Sketch%E7%AE%80%E4%BB%8B/%E4%BC%81%E4%B8%9A%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_7.png" alt></p>
+<h4 id="2-4关于size"><a href="#2-4关于size" class="headerlink" title="2.4关于size"></a>2.4关于size</h4><p>size必须为2的倍数，size的大小&gt;=一个统计维度内所有不重复的数值的总个数</p>
+<p>举例:按天，按终端类型(android/os)统计uv数据。如果一天内android的uv数预计为1000，os的uv数预计为900，则size数可设置为1024。thetaSketch是将android和ios两部分的用户id分别存储在segment里，如果合并查询os和android的uv数，thetaSketch会将两部分数据合并去重。</p>
+<p>size设置过小会导致去重结果不准确，使用APPROX_COUNT_DISTINCT_DS_THETA<br>函数查询结果会偏大，使用json查询会出现浮点位。</p>
+<p><img src="/2020/03/30/DataSketches%20Theta%20Sketch%E7%AE%80%E4%BB%8B/Image.png" alt></p>
+<p>默认数据摄入和查询的size数为16384，使用默认值可不设置size参数。如果需要手动指定size的大小，那么在摄入时需要设置size的具体值，如：<code>{&quot;type&quot; : &quot;thetaSketch&quot;, 
+&quot;name&quot; :&quot;uv&quot;, 
+&quot;fieldName&quot; :&quot;uid&quot;, 
+&quot;size&quot;:  32768</code>}, 注意这种情况下在使用查询语句时也必须指定size的大小，并且size的大小需&gt;=32768。如: <code>APPROX_COUNT_DISTINCT_DS_THETA(uv, 65536)</code>, <code>{
+      &quot;name&quot;: &quot;visit&quot;,
+      &quot;type&quot;: &quot;thetaSketch&quot;,
+      &quot;fieldName&quot;: &quot;visit&quot;,
+      &quot;size&quot;:65536
+    }</code></p>
+<h4 id="参考文献："><a href="#参考文献：" class="headerlink" title="参考文献："></a>参考文献：</h4><p>1，druid.io官网 <a href="https://druid.apache.org/docs/latest/design/" target="_blank" rel="noopener">https://druid.apache.org/docs/latest/design/</a></p>
+<p>2，DataSketches官网 <a href="https://datasketches.github.io/docs/Theta/ThetaSketchFramework.html" target="_blank" rel="noopener">https://datasketches.github.io/docs/Theta/ThetaSketchFramework.html</a></p>
+<p>3，<a href="https://www.infoq.com/news/2016/01/Yahoo-open-sources-data-sketches/" target="_blank" rel="noopener">https://www.infoq.com/news/2016/01/Yahoo-open-sources-data-sketches/</a></p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/03/23/TwoPhaseCommitSinkFunction/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -573,7 +949,7 @@
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">12</span>
+                  <span class="site-state-item-count">14</span>
                   <span class="site-state-item-name">posts</span>
                 </a>
               </div>
