@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next muse use-motion" lang="en">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="Hexo, NexT" />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="由MiniClusterClient客户端提交至MiniCluster的submitJob，submitJob将jobGraph提交到flink集群的Dispatcher，由Dispatcher生成jobmanager 123456789101112131415public CompletableFuture&lt;JobSudispatcherbmissionResult&gt; submitJ">
+<meta property="og:type" content="article">
+<meta property="og:title" content="JobManager启动过程">
+<meta property="og:url" content="http://yoursite.com/2020/06/22/JobManager%E5%90%AF%E5%8A%A8%E8%BF%87%E7%A8%8B/index.html">
+<meta property="og:site_name" content="HK书屋">
+<meta property="og:description" content="由MiniClusterClient客户端提交至MiniCluster的submitJob，submitJob将jobGraph提交到flink集群的Dispatcher，由Dispatcher生成jobmanager 123456789101112131415public CompletableFuture&lt;JobSudispatcherbmissionResult&gt; submitJ">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2020-06-22T06:57:17.825Z">
+<meta property="article:modified_time" content="2020-06-24T07:04:48.026Z">
+<meta property="article:author" content="HH KKs">
+<meta name="twitter:card" content="summary">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Muse',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: 'Author'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2020/06/22/JobManager启动过程/"/>
+
+
+
+
+
+  <title>JobManager启动过程 | HK书屋</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.0"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="en">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">HK书屋</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-question-circle"></i> <br />
+            
+            Home
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-question-circle"></i> <br />
+            
+            About
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-question-circle"></i> <br />
+            
+            Tags
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-question-circle"></i> <br />
+            
+            Categories
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-question-circle"></i> <br />
+            
+            Archives
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/06/22/JobManager%E5%90%AF%E5%8A%A8%E8%BF%87%E7%A8%8B/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="HH KKs">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="HK书屋">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">JobManager启动过程</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">Posted on</span>
+              
+              <time title="Post created" itemprop="dateCreated datePublished" datetime="2020-06-22T14:57:17+08:00">
+                2020-06-22
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>由MiniClusterClient客户端提交至MiniCluster的submitJob，submitJob将jobGraph提交到flink集群的Dispatcher，由Dispatcher生成jobmanager</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">public CompletableFuture&lt;JobSudispatcherbmissionResult&gt; submitJob(JobGraph jobGraph) &#123;</span><br><span class="line">&#x2F;&#x2F;获取dispatcher地址</span><br><span class="line">   final CompletableFuture&lt;DispatcherGateway&gt; dispatcherGatewayFuture &#x3D; getDispatcherGatewayFuture();</span><br><span class="line">   final CompletableFuture&lt;InetSocketAddress&gt; blobServerAddressFuture &#x3D; createBlobServerAddress(dispatcherGatewayFuture);</span><br><span class="line">   &#x2F;&#x2F;上传jar包至Dispatcher</span><br><span class="line">   final CompletableFuture&lt;Void&gt; jarUploadFuture &#x3D; uploadAndSetJobFiles(blobServerAddressFuture, jobGraph);</span><br><span class="line">   final CompletableFuture&lt;Acknowledge&gt; acknowledgeCompletableFuture &#x3D; jarUploadFuture</span><br><span class="line">      .thenCombine(</span><br><span class="line">         dispatcherGatewayFuture,</span><br><span class="line">         &#x2F;&#x2F;向dispatcher提交jobGraph</span><br><span class="line">         (Void ack, DispatcherGateway dispatcherGateway) -&gt; dispatcherGateway.submitJob(jobGraph, rpcTimeout))</span><br><span class="line">      .thenCompose(Function.identity());</span><br><span class="line">   return acknowledgeCompletableFuture.thenApply(</span><br><span class="line">      (Acknowledge ignored) -&gt; new JobSubmissionResult(jobGraph.getJobID()));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Dispatcher类submit方法，</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">public CompletableFuture&lt;Acknowledge&gt; submitJob(JobGraph jobGraph, Time timeout) &#123;</span><br><span class="line">   log.info(&quot;Received JobGraph submission &#123;&#125; (&#123;&#125;).&quot;, jobGraph.getJobID(), jobGraph.getName());</span><br><span class="line"></span><br><span class="line">   try &#123;</span><br><span class="line">   &#x2F;&#x2F;重复提交的job抛出异常</span><br><span class="line">      if (isDuplicateJob(jobGraph.getJobID())) &#123;</span><br><span class="line">         return FutureUtils.completedExceptionally(</span><br><span class="line">            new DuplicateJobSubmissionException(jobGraph.getJobID()));</span><br><span class="line">            &#x2F;&#x2F;不完整的job抛出异常</span><br><span class="line">      &#125; else if (isPartialResourceConfigured(jobGraph)) &#123;</span><br><span class="line">         return FutureUtils.completedExceptionally(</span><br><span class="line">            new JobSubmissionException(jobGraph.getJobID(), &quot;Currently jobs is not supported if parts of the vertices have &quot; +</span><br><span class="line">                  &quot;resources configured. The limitation will be removed in future versions.&quot;));</span><br><span class="line">      &#125; else &#123;</span><br><span class="line">         return internalSubmitJob(jobGraph);</span><br><span class="line">      &#125;</span><br><span class="line">   &#125; catch (FlinkException e) &#123;</span><br><span class="line">      return FutureUtils.completedExceptionally(e);</span><br><span class="line">   &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>进入Dispatcher类internalSubmitJob方法</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">private CompletableFuture&lt;Acknowledge&gt; internalSubmitJob(JobGraph jobGraph) &#123;</span><br><span class="line">   log.info(&quot;Submitting job &#123;&#125; (&#123;&#125;).&quot;, jobGraph.getJobID(), jobGraph.getName());</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;终止老的JobManager并提交新的job</span><br><span class="line">   final CompletableFuture&lt;Acknowledge&gt; persistAndRunFuture &#x3D; waitForTerminatingJobManager(jobGraph.getJobID(), jobGraph, this::persistAndRunJob)</span><br><span class="line">      .thenApply(ignored -&gt; Acknowledge.get());</span><br><span class="line"></span><br><span class="line">   return persistAndRunFuture.handleAsync((acknowledge, throwable) -&gt; &#123;</span><br><span class="line">      if (throwable !&#x3D; null) &#123;</span><br><span class="line">         cleanUpJobData(jobGraph.getJobID(), true);</span><br><span class="line"></span><br><span class="line">         final Throwable strippedThrowable &#x3D; ExceptionUtils.stripCompletionException(throwable);</span><br><span class="line">         log.error(&quot;Failed to submit job &#123;&#125;.&quot;, jobGraph.getJobID(), strippedThrowable);</span><br><span class="line">         throw new CompletionException(</span><br><span class="line">            new JobSubmissionException(jobGraph.getJobID(), &quot;Failed to submit job.&quot;, strippedThrowable));</span><br><span class="line">      &#125; else &#123;</span><br><span class="line">         return acknowledge;</span><br><span class="line">      &#125;</span><br><span class="line">   &#125;, getRpcService().getExecutor());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>看一下waitForTerminatingJobManager方法，就是终止相同jobId的JobManager并启动新的jobmanager，通过执行action.apply(jobGraph)，action方法是persistAndRunJob</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">private CompletableFuture&lt;Void&gt; waitForTerminatingJobManager(JobID jobId, JobGraph jobGraph, FunctionWithException&lt;JobGraph, CompletableFuture&lt;Void&gt;, ?&gt; action) &#123;</span><br><span class="line">   final CompletableFuture&lt;Void&gt; jobManagerTerminationFuture &#x3D; getJobTerminationFuture(jobId)</span><br><span class="line">      .exceptionally((Throwable throwable) -&gt; &#123;</span><br><span class="line">         throw new CompletionException(</span><br><span class="line">            new DispatcherException(</span><br><span class="line">               String.format(&quot;Termination of previous JobManager for job %s failed. Cannot submit job under the same job id.&quot;, jobId),</span><br><span class="line">               throwable)); &#125;);</span><br><span class="line"></span><br><span class="line">   return jobManagerTerminationFuture.thenComposeAsync(</span><br><span class="line">      FunctionUtils.uncheckedFunction((ignored) -&gt; &#123;</span><br><span class="line">         jobManagerTerminationFutures.remove(jobId);</span><br><span class="line">         return action.apply(jobGraph);</span><br><span class="line">      &#125;),</span><br><span class="line">      getMainThreadExecutor());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>以下过程大概是提交job之后，创建JobManager，在JobManager中创建JobMaster，在JobMaster中创建Scheduler等</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br></pre></td><td class="code"><pre><span class="line">private CompletableFuture&lt;Void&gt; persistAndRunJob(JobGraph jobGraph) throws Exception &#123;</span><br><span class="line">&#x2F;&#x2F;保存jobGraph</span><br><span class="line">		jobGraphWriter.putJobGraph(jobGraph);</span><br><span class="line"></span><br><span class="line">		final CompletableFuture&lt;Void&gt; runJobFuture &#x3D; runJob(jobGraph);</span><br><span class="line"></span><br><span class="line">		return runJobFuture.whenComplete(BiConsumerWithException.unchecked((Object ignored, Throwable throwable) -&gt; &#123;</span><br><span class="line">			if (throwable !&#x3D; null) &#123;</span><br><span class="line">				jobGraphWriter.removeJobGraph(jobGraph.getJobID());</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;));</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">private CompletableFuture&lt;Void&gt; runJob(JobGraph jobGraph) &#123;</span><br><span class="line">		&#x2F;&#x2F;这里创建JobManager</span><br><span class="line">		final CompletableFuture&lt;JobManagerRunner&gt; jobManagerRunnerFuture &#x3D; createJobManagerRunner(jobGraph);</span><br><span class="line"></span><br><span class="line">		jobManagerRunnerFutures.put(jobGraph.getJobID(), jobManagerRunnerFuture);</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;创建成功启动JobManager</span><br><span class="line">		return jobManagerRunnerFuture</span><br><span class="line">			.thenApply(FunctionUtils.uncheckedFunction(this::startJobManagerRunner))</span><br><span class="line">			.thenApply(FunctionUtils.nullFn())</span><br><span class="line">			......</span><br><span class="line">	&#125;</span><br><span class="line">	</span><br><span class="line">	</span><br><span class="line">	</span><br><span class="line">	private CompletableFuture&lt;JobManagerRunner&gt; createJobManagerRunner(JobGraph jobGraph) &#123;</span><br><span class="line">		final RpcService rpcService &#x3D; getRpcService();</span><br><span class="line"></span><br><span class="line">		return CompletableFuture.supplyAsync(</span><br><span class="line">			CheckedSupplier.unchecked(() -&gt;</span><br><span class="line">			&#x2F;&#x2F;DefaultJobManagerRunnerFactory工厂类创建JobManager</span><br><span class="line">				jobManagerRunnerFactory.createJobManagerRunner(</span><br><span class="line">					jobGraph,</span><br><span class="line">					......),</span><br><span class="line">			rpcService.getExecutor());</span><br><span class="line">	&#125;</span><br><span class="line">	</span><br><span class="line">	</span><br><span class="line">	</span><br><span class="line">	public enum DefaultJobManagerRunnerFactory implements JobManagerRunnerFactory &#123;</span><br><span class="line">	INSTANCE;</span><br><span class="line">	@Override</span><br><span class="line">	public JobManagerRunner createJobManagerRunner(</span><br><span class="line">			JobGraph jobGraph,</span><br><span class="line">			......) throws Exception &#123;</span><br><span class="line">			</span><br><span class="line">&#x2F;&#x2F;DefaultJobMasterServiceFactory工厂类用来创建JobMaster</span><br><span class="line">		final JobMasterServiceFactory jobMasterFactory &#x3D; new DefaultJobMasterServiceFactory(</span><br><span class="line">			......);</span><br><span class="line"></span><br><span class="line">		return new JobManagerRunnerImpl(</span><br><span class="line">			jobGraph,</span><br><span class="line">			......);</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;JobManagerRunnerImpl创建jobMaster</span><br><span class="line">public JobManagerRunnerImpl(</span><br><span class="line">			final JobGraph jobGraph,</span><br><span class="line">			......) throws Exception &#123;</span><br><span class="line"></span><br><span class="line">			&#x2F;&#x2F; libraries and class loader first</span><br><span class="line">			try &#123;</span><br><span class="line">				libraryCacheManager.registerJob(</span><br><span class="line">						jobGraph.getJobID(), jobGraph.getUserJarBlobKeys(), jobGraph.getClasspaths());</span><br><span class="line">			&#125; catch (IOException e) &#123;</span><br><span class="line">				throw new Exception(&quot;Cannot set up the user code libraries: &quot; + e.getMessage(), e);</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			final ClassLoader userCodeLoader &#x3D; libraryCacheManager.getClassLoader(jobGraph.getJobID());</span><br><span class="line">			if (userCodeLoader &#x3D;&#x3D; null) &#123;</span><br><span class="line">				throw new Exception(&quot;The user code class loader could not be initialized.&quot;);</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			&#x2F;&#x2F; high availability services next</span><br><span class="line">			this.runningJobsRegistry &#x3D; haServices.getRunningJobsRegistry();</span><br><span class="line">			&#x2F;&#x2F;获取HA选举服务</span><br><span class="line">			this.leaderElectionService &#x3D; haServices.getJobManagerLeaderElectionService(jobGraph.getJobID());</span><br><span class="line"></span><br><span class="line">			this.leaderGatewayFuture &#x3D; new CompletableFuture&lt;&gt;();</span><br><span class="line"></span><br><span class="line">			&#x2F;&#x2F; now start the JobManager，调用JobMaster的构造函数</span><br><span class="line">			this.jobMasterService &#x3D; jobMasterFactory.createJobMasterService(jobGraph, this, userCodeLoader);</span><br><span class="line">		&#125;</span><br><span class="line">		......</span><br><span class="line">	&#125;</span><br><span class="line">	</span><br><span class="line">	</span><br><span class="line">	</span><br><span class="line">	</span><br><span class="line">	</span><br><span class="line">	public JobMaster createJobMasterService(</span><br><span class="line">			JobGraph jobGraph,</span><br><span class="line">			OnCompletionActions jobCompletionActions,</span><br><span class="line">			ClassLoader userCodeClassloader) throws Exception &#123;</span><br><span class="line"></span><br><span class="line">		return new JobMaster(</span><br><span class="line">			rpcService,</span><br><span class="line">			jobMasterConfiguration,</span><br><span class="line">			ResourceID.generate(),</span><br><span class="line">			jobGraph,</span><br><span class="line">			haServices,</span><br><span class="line">			slotPoolFactory,</span><br><span class="line">			schedulerFactory,</span><br><span class="line">			jobManagerSharedServices,</span><br><span class="line">			heartbeatServices,</span><br><span class="line">			jobManagerJobMetricGroupFactory,</span><br><span class="line">			jobCompletionActions,</span><br><span class="line">			fatalErrorHandler,</span><br><span class="line">			userCodeClassloader,</span><br><span class="line">			schedulerNGFactory,</span><br><span class="line">			shuffleMaster,</span><br><span class="line">			lookup -&gt; new JobMasterPartitionTrackerImpl(</span><br><span class="line">				jobGraph.getJobID(),</span><br><span class="line">				shuffleMaster,</span><br><span class="line">				lookup</span><br><span class="line">			));</span><br><span class="line">	&#125;</span><br><span class="line">	</span><br><span class="line">	</span><br><span class="line">	</span><br><span class="line">	</span><br><span class="line">	&#x2F;&#x2F;进入JobMaster类构造函数</span><br><span class="line">	public JobMaster(</span><br><span class="line">			......</span><br><span class="line">			JobGraph jobGraph,</span><br><span class="line">			......) throws Exception &#123;</span><br><span class="line"></span><br><span class="line">		......</span><br><span class="line">		resourceManagerLeaderRetriever &#x3D; highAvailabilityServices.getResourceManagerLeaderRetriever();</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;创建SlotPool，用来给job申请和分配slot资源</span><br><span class="line">		this.slotPool &#x3D; checkNotNull(slotPoolFactory).createSlotPool(jobGraph.getJobID());</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;创建Scheduler，SchedulerImpl类用来使用slotSelectionStrategy把task分配给slot</span><br><span class="line">		this.scheduler &#x3D; checkNotNull(schedulerFactory).createScheduler(slotPool);</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;用来保存已连接的TaskManager</span><br><span class="line">		this.registeredTaskManagers &#x3D; new HashMap&lt;&gt;(4);</span><br><span class="line">		this.partitionTracker &#x3D; checkNotNull(partitionTrackerFactory)</span><br><span class="line">			.create(resourceID -&gt; &#123;</span><br><span class="line">				Tuple2&lt;TaskManagerLocation, TaskExecutorGateway&gt; taskManagerInfo &#x3D; registeredTaskManagers.get(resourceID);</span><br><span class="line">				if (taskManagerInfo &#x3D;&#x3D; null) &#123;</span><br><span class="line">					return Optional.empty();</span><br><span class="line">				&#125;</span><br><span class="line"></span><br><span class="line">				return Optional.of(taskManagerInfo.f1);</span><br><span class="line">			&#125;);</span><br><span class="line"></span><br><span class="line">		this.backPressureStatsTracker &#x3D; checkNotNull(jobManagerSharedServices.getBackPressureStatsTracker());</span><br><span class="line"></span><br><span class="line">		this.shuffleMaster &#x3D; checkNotNull(shuffleMaster);</span><br><span class="line"></span><br><span class="line">		this.jobManagerJobMetricGroup &#x3D; jobMetricGroupFactory.create(jobGraph);</span><br><span class="line">		&#x2F;&#x2F;创建flink job的调度类，通过DefaultSchedulerFactory工厂类的createInstance创建实例</span><br><span class="line">		this.schedulerNG &#x3D; createScheduler(jobManagerJobMetricGroup);</span><br><span class="line">		this.jobStatusListener &#x3D; null;</span><br><span class="line"></span><br><span class="line">		this.resourceManagerConnection &#x3D; null;</span><br><span class="line">		this.establishedResourceManagerConnection &#x3D; null;</span><br><span class="line"></span><br><span class="line">		this.accumulators &#x3D; new HashMap&lt;&gt;();</span><br><span class="line">		this.taskManagerHeartbeatManager &#x3D; NoOpHeartbeatManager.getInstance();</span><br><span class="line">		this.resourceManagerHeartbeatManager &#x3D; NoOpHeartbeatManager.getInstance();</span><br><span class="line">	&#125;</span><br></pre></td></tr></table></figure>
+
+<p>schedulerNG用于调度提交的job，管理调度策略，slot分配策略，生成ExecutionGraph，根据savapoint及checkpoint启动等。</p>
+<p>创建好JobManagerRunner之后，回到Dispatcher的runJob方法，调用startJobManagerRunner启动JobManager。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line">private JobManagerRunner startJobManagerRunner(JobManagerRunner jobManagerRunner) throws Exception &#123;</span><br><span class="line">   final JobID jobId &#x3D; jobManagerRunner.getJobID();</span><br><span class="line"></span><br><span class="line">   FutureUtils.assertNoException(</span><br><span class="line">      jobManagerRunner.getResultFuture().handleAsync(</span><br><span class="line">         (ArchivedExecutionGraph archivedExecutionGraph, Throwable throwable) -&gt; &#123;</span><br><span class="line">            &#x2F;&#x2F; check if we are still the active JobManagerRunner by checking the identity</span><br><span class="line">            final JobManagerRunner currentJobManagerRunner &#x3D; Optional.ofNullable(jobManagerRunnerFutures.get(jobId))</span><br><span class="line">               .map(future -&gt; future.getNow(null))</span><br><span class="line">               .orElse(null);</span><br><span class="line">            &#x2F;&#x2F;noinspection ObjectEquality</span><br><span class="line">            if (jobManagerRunner &#x3D;&#x3D; currentJobManagerRunner) &#123;</span><br><span class="line">               if (archivedExecutionGraph !&#x3D; null) &#123;</span><br><span class="line">                  jobReachedGloballyTerminalState(archivedExecutionGraph);</span><br><span class="line">               &#125; else &#123;</span><br><span class="line">                  final Throwable strippedThrowable &#x3D; ExceptionUtils.stripCompletionException(throwable);</span><br><span class="line"></span><br><span class="line">                  if (strippedThrowable instanceof JobNotFinishedException) &#123;</span><br><span class="line">                     jobNotFinished(jobId);</span><br><span class="line">                  &#125; else &#123;</span><br><span class="line">                     jobMasterFailed(jobId, strippedThrowable);</span><br><span class="line">                  &#125;</span><br><span class="line">               &#125;</span><br><span class="line">            &#125; else &#123;</span><br><span class="line">               log.debug(&quot;There is a newer JobManagerRunner for the job &#123;&#125;.&quot;, jobId);</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            return null;</span><br><span class="line">         &#125;, getMainThreadExecutor()));</span><br><span class="line">&#x2F;&#x2F;启动jobManager</span><br><span class="line">   jobManagerRunner.start();</span><br><span class="line"></span><br><span class="line">   return jobManagerRunner;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>JobManagerRunnerImpl类</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">public void start() throws Exception &#123;</span><br><span class="line">   try &#123;</span><br><span class="line">   &#x2F;&#x2F;选举leader节点</span><br><span class="line">      leaderElectionService.start(this);</span><br><span class="line">   &#125; catch (Exception e) &#123;</span><br><span class="line">      log.error(&quot;Could not start the JobManager because the leader election service did not start.&quot;, e);</span><br><span class="line">      throw new Exception(&quot;Could not start the leader election service.&quot;, e);</span><br><span class="line">   &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>主节点选举成功回调JobManagerRunnerImpl类的grantLeadership回调方法</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line">public void grantLeadership(final UUID leaderSessionID) &#123;</span><br><span class="line">   synchronized (lock) &#123;</span><br><span class="line">      if (shutdown) &#123;</span><br><span class="line">         log.info(&quot;JobManagerRunner already shutdown.&quot;);</span><br><span class="line">         return;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      leadershipOperation &#x3D; leadershipOperation.thenCompose(</span><br><span class="line">         (ignored) -&gt; &#123;</span><br><span class="line">            synchronized (lock) &#123;</span><br><span class="line">               return verifyJobSchedulingStatusAndStartJobManager(leaderSessionID);</span><br><span class="line">            &#125;</span><br><span class="line">         &#125;);</span><br><span class="line"></span><br><span class="line">      handleException(leadershipOperation, &quot;Could not start the job manager.&quot;);</span><br><span class="line">   &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">private CompletableFuture&lt;Void&gt; verifyJobSchedulingStatusAndStartJobManager(UUID leaderSessionId) &#123;</span><br><span class="line">		final CompletableFuture&lt;JobSchedulingStatus&gt; jobSchedulingStatusFuture &#x3D; getJobSchedulingStatus();</span><br><span class="line"></span><br><span class="line">		return jobSchedulingStatusFuture.thenCompose(</span><br><span class="line">			jobSchedulingStatus -&gt; &#123;</span><br><span class="line">				if (jobSchedulingStatus &#x3D;&#x3D; JobSchedulingStatus.DONE) &#123;</span><br><span class="line">					return jobAlreadyDone();</span><br><span class="line">				&#125; else &#123;</span><br><span class="line">				&#x2F;&#x2F;启动startJobMaster</span><br><span class="line">					return startJobMaster(leaderSessionId);</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;);</span><br><span class="line">	&#125;</span><br></pre></td></tr></table></figure>
+
+<p>主节点选举成功启动startJobMaster</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line">private CompletionStage&lt;Void&gt; startJobMaster(UUID leaderSessionId) &#123;</span><br><span class="line">   log.info(&quot;JobManager runner for job &#123;&#125; (&#123;&#125;) was granted leadership with session id &#123;&#125; at &#123;&#125;.&quot;,</span><br><span class="line">      jobGraph.getName(), jobGraph.getJobID(), leaderSessionId, jobMasterService.getAddress());</span><br><span class="line"></span><br><span class="line">   try &#123;</span><br><span class="line">      runningJobsRegistry.setJobRunning(jobGraph.getJobID());</span><br><span class="line">   &#125; catch (IOException e) &#123;</span><br><span class="line">      return FutureUtils.completedExceptionally(</span><br><span class="line">         new FlinkException(</span><br><span class="line">            String.format(&quot;Failed to set the job %s to running in the running jobs registry.&quot;, jobGraph.getJobID()),</span><br><span class="line">            e));</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   final CompletableFuture&lt;Acknowledge&gt; startFuture;</span><br><span class="line">   try &#123;</span><br><span class="line">   &#x2F;&#x2F;使用leaderSessionId构建 JobMasterId 启动 JobMaster</span><br><span class="line">      startFuture &#x3D; jobMasterService.start(new JobMasterId(leaderSessionId));</span><br><span class="line">   &#125; catch (Exception e) &#123;</span><br><span class="line">      return FutureUtils.completedExceptionally(new FlinkException(&quot;Failed to start the JobMaster.&quot;, e));</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   final CompletableFuture&lt;JobMasterGateway&gt; currentLeaderGatewayFuture &#x3D; leaderGatewayFuture;</span><br><span class="line">   return startFuture.thenAcceptAsync(</span><br><span class="line">      (Acknowledge ack) -&gt; confirmLeaderSessionIdIfStillLeader(</span><br><span class="line">         leaderSessionId,</span><br><span class="line">         jobMasterService.getAddress(),</span><br><span class="line">         currentLeaderGatewayFuture),</span><br><span class="line">      executor);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>进入JobMaster类start</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">public CompletableFuture&lt;Acknowledge&gt; start(final JobMasterId newJobMasterId) throws Exception &#123;</span><br><span class="line">   &#x2F;&#x2F; make sure we receive RPC and async calls</span><br><span class="line">   &#x2F;&#x2F;启动RpcServer</span><br><span class="line">   start();</span><br><span class="line"></span><br><span class="line">   return callAsyncWithoutFencing(() -&gt; startJobExecution(newJobMasterId), RpcUtils.INF_TIMEOUT);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">private Acknowledge startJobExecution(JobMasterId newJobMasterId) throws Exception &#123;</span><br><span class="line"></span><br><span class="line">   validateRunsInMainThread();</span><br><span class="line"></span><br><span class="line">   checkNotNull(newJobMasterId, &quot;The new JobMasterId must not be null.&quot;);</span><br><span class="line"></span><br><span class="line">   if (Objects.equals(getFencingToken(), newJobMasterId)) &#123;</span><br><span class="line">      log.info(&quot;Already started the job execution with JobMasterId &#123;&#125;.&quot;, newJobMasterId);</span><br><span class="line"></span><br><span class="line">      return Acknowledge.get();</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   setNewFencingToken(newJobMasterId);</span><br><span class="line"></span><br><span class="line">   startJobMasterServices();</span><br><span class="line"></span><br><span class="line">   log.info(&quot;Starting execution of job &#123;&#125; (&#123;&#125;) under job master id &#123;&#125;.&quot;, jobGraph.getName(), jobGraph.getJobID(), newJobMasterId);</span><br><span class="line"></span><br><span class="line">   resetAndStartScheduler();</span><br><span class="line"></span><br><span class="line">   return Acknowledge.get();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><code>JobMaster</code> 启动后会和 <code>ResourceManager</code> 建立连接，连接被封装为 <code>ResourceManagerConnection</code>。一旦连接建立之后，<code>JobMaster</code> 就可以通过 RPC 调用和 <code>ResourceManager</code> 进行通信了</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">private void startJobMasterServices() throws Exception &#123;</span><br><span class="line">&#x2F;&#x2F;启动心跳服务</span><br><span class="line">   startHeartbeatServices();</span><br><span class="line"></span><br><span class="line">   &#x2F;&#x2F; start the slot pool make sure the slot pool now accepts messages for this leader</span><br><span class="line">   &#x2F;&#x2F;启动slotPool及scheduler</span><br><span class="line">   slotPool.start(getFencingToken(), getAddress(), getMainThreadExecutor());</span><br><span class="line">   scheduler.start(getMainThreadExecutor());</span><br><span class="line"></span><br><span class="line">   &#x2F;&#x2F;TODO: Remove once the ZooKeeperLeaderRetrieval returns the stored address upon start</span><br><span class="line">   &#x2F;&#x2F; try to reconnect to previously known leader</span><br><span class="line">   reconnectToResourceManager(new FlinkException(&quot;Starting JobMaster component.&quot;));</span><br><span class="line"></span><br><span class="line">   &#x2F;&#x2F; job is ready to go, try to establish connection with resource manager</span><br><span class="line">   &#x2F;&#x2F;   - activate leader retrieval for the resource manager</span><br><span class="line">   &#x2F;&#x2F;   - on notification of the leader, the connection will be established and</span><br><span class="line">   &#x2F;&#x2F;     the slot pool will start requesting slots</span><br><span class="line">   &#x2F;&#x2F;如果previously known leader连接失败，则等待ResourceManagerLeader选举，然后调用reconnectToResourceManager</span><br><span class="line">   resourceManagerLeaderRetriever.start(new ResourceManagerLeaderListener());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>最终调用connectToResourceManager将连接封装为ResourceManagerConnection</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">private void connectToResourceManager() &#123;</span><br><span class="line">   assert(resourceManagerAddress !&#x3D; null);</span><br><span class="line">   assert(resourceManagerConnection &#x3D;&#x3D; null);</span><br><span class="line">   assert(establishedResourceManagerConnection &#x3D;&#x3D; null);</span><br><span class="line"></span><br><span class="line">   log.info(&quot;Connecting to ResourceManager &#123;&#125;&quot;, resourceManagerAddress);</span><br><span class="line"></span><br><span class="line">   resourceManagerConnection &#x3D; new ResourceManagerConnection(</span><br><span class="line">      log,</span><br><span class="line">      jobGraph.getJobID(),</span><br><span class="line">      resourceId,</span><br><span class="line">      getAddress(),</span><br><span class="line">      getFencingToken(),</span><br><span class="line">      resourceManagerAddress.getAddress(),</span><br><span class="line">      resourceManagerAddress.getResourceManagerId(),</span><br><span class="line">      scheduledExecutorService);</span><br><span class="line"></span><br><span class="line">   resourceManagerConnection.start();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>resourceManagerConnection启动</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">public void start() &#123;</span><br><span class="line">   checkState(!closed, &quot;The RPC connection is already closed&quot;);</span><br><span class="line">   checkState(!isConnected() &amp;&amp; pendingRegistration &#x3D;&#x3D; null, &quot;The RPC connection is already started&quot;);</span><br><span class="line"></span><br><span class="line">   final RetryingRegistration&lt;F, G, S&gt; newRegistration &#x3D; createNewRegistration();</span><br><span class="line"></span><br><span class="line">   if (REGISTRATION_UPDATER.compareAndSet(this, null, newRegistration)) &#123;</span><br><span class="line">      newRegistration.startRegistration();</span><br><span class="line">   &#125; else &#123;</span><br><span class="line">      &#x2F;&#x2F; concurrent start operation</span><br><span class="line">      newRegistration.cancel();</span><br><span class="line">   &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>createNewRegistration创建与ResourceManager的连接</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">private RetryingRegistration&lt;F, G, S&gt; createNewRegistration() &#123;</span><br><span class="line">   RetryingRegistration&lt;F, G, S&gt; newRegistration &#x3D; checkNotNull(generateRegistration());</span><br><span class="line"></span><br><span class="line">   CompletableFuture&lt;Tuple2&lt;G, S&gt;&gt; future &#x3D; newRegistration.getFuture();</span><br><span class="line"></span><br><span class="line">   future.whenCompleteAsync(</span><br><span class="line">      (Tuple2&lt;G, S&gt; result, Throwable failure) -&gt; &#123;</span><br><span class="line">         if (failure !&#x3D; null) &#123;</span><br><span class="line">            if (failure instanceof CancellationException) &#123;</span><br><span class="line">               &#x2F;&#x2F; we ignore cancellation exceptions because they originate from cancelling</span><br><span class="line">               &#x2F;&#x2F; the RetryingRegistration</span><br><span class="line">               log.debug(&quot;Retrying registration towards &#123;&#125; was cancelled.&quot;, targetAddress);</span><br><span class="line">            &#125; else &#123;</span><br><span class="line">               &#x2F;&#x2F; this future should only ever fail if there is a bug, not if the registration is declined</span><br><span class="line">               onRegistrationFailure(failure);</span><br><span class="line">            &#125;</span><br><span class="line">         &#125; else &#123;</span><br><span class="line">            targetGateway &#x3D; result.f0;</span><br><span class="line">            onRegistrationSuccess(result.f1);</span><br><span class="line">         &#125;</span><br><span class="line">      &#125;, executor);</span><br><span class="line"></span><br><span class="line">   return newRegistration;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>成功后回调onRegistrationSuccess建立连接</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">protected void onRegistrationSuccess(final JobMasterRegistrationSuccess success) &#123;</span><br><span class="line">   runAsync(() -&gt; &#123;</span><br><span class="line">      &#x2F;&#x2F; filter out outdated connections</span><br><span class="line">      &#x2F;&#x2F;noinspection ObjectEquality</span><br><span class="line">      if (this &#x3D;&#x3D; resourceManagerConnection) &#123;</span><br><span class="line">         establishResourceManagerConnection(success);</span><br><span class="line">      &#125;</span><br><span class="line">   &#125;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>建立的连接封装为EstablishedResourceManagerConnection类</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line">private void establishResourceManagerConnection(final JobMasterRegistrationSuccess success) &#123;</span><br><span class="line">   final ResourceManagerId resourceManagerId &#x3D; success.getResourceManagerId();</span><br><span class="line"></span><br><span class="line">   &#x2F;&#x2F; verify the response with current connection</span><br><span class="line">   if (resourceManagerConnection !&#x3D; null</span><br><span class="line">         &amp;&amp; Objects.equals(resourceManagerConnection.getTargetLeaderId(), resourceManagerId)) &#123;</span><br><span class="line"></span><br><span class="line">      log.info(&quot;JobManager successfully registered at ResourceManager, leader id: &#123;&#125;.&quot;, resourceManagerId);</span><br><span class="line"></span><br><span class="line">      final ResourceManagerGateway resourceManagerGateway &#x3D; resourceManagerConnection.getTargetGateway();</span><br><span class="line"></span><br><span class="line">      final ResourceID resourceManagerResourceId &#x3D; success.getResourceManagerResourceId();</span><br><span class="line"></span><br><span class="line">      establishedResourceManagerConnection &#x3D; new EstablishedResourceManagerConnection(</span><br><span class="line">         resourceManagerGateway,</span><br><span class="line">         resourceManagerResourceId);</span><br><span class="line"></span><br><span class="line">      slotPool.connectToResourceManager(resourceManagerGateway);</span><br><span class="line"></span><br><span class="line">      resourceManagerHeartbeatManager.monitorTarget(resourceManagerResourceId, new HeartbeatTarget&lt;Void&gt;() &#123;</span><br><span class="line">         @Override</span><br><span class="line">         public void receiveHeartbeat(ResourceID resourceID, Void payload) &#123;</span><br><span class="line">            resourceManagerGateway.heartbeatFromJobManager(resourceID);</span><br><span class="line">         &#125;</span><br><span class="line"></span><br><span class="line">         @Override</span><br><span class="line">         public void requestHeartbeat(ResourceID resourceID, Void payload) &#123;</span><br><span class="line">            &#x2F;&#x2F; request heartbeat will never be called on the job manager side</span><br><span class="line">         &#125;</span><br><span class="line">      &#125;);</span><br><span class="line">   &#125; else &#123;</span><br><span class="line">      log.debug(&quot;Ignoring resource manager connection to &#123;&#125; because it&#39;s duplicated or outdated.&quot;, resourceManagerId);</span><br><span class="line"></span><br><span class="line">   &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>创建好newRegistration之后启动，newRegistration.startRegistration()向ResourceManager注册JobMaster</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line">public void startRegistration() &#123;</span><br><span class="line">   if (canceled) &#123;</span><br><span class="line">      &#x2F;&#x2F; we already got canceled</span><br><span class="line">      return;</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   try &#123;</span><br><span class="line">      &#x2F;&#x2F; trigger resolution of the target address to a callable gateway</span><br><span class="line">      final CompletableFuture&lt;G&gt; rpcGatewayFuture;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;获取ResourceManagerGateway地址</span><br><span class="line">      if (FencedRpcGateway.class.isAssignableFrom(targetType)) &#123;</span><br><span class="line">         rpcGatewayFuture &#x3D; (CompletableFuture&lt;G&gt;) rpcService.connect(</span><br><span class="line">            targetAddress,</span><br><span class="line">            fencingToken,</span><br><span class="line">            targetType.asSubclass(FencedRpcGateway.class));</span><br><span class="line">      &#125; else &#123;</span><br><span class="line">         rpcGatewayFuture &#x3D; rpcService.connect(targetAddress, targetType);</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      &#x2F;&#x2F; upon success, start the registration attempts</span><br><span class="line">      &#x2F;&#x2F;获取ResourceManagerGateway成功之后向ResourceManager注册</span><br><span class="line">      CompletableFuture&lt;Void&gt; rpcGatewayAcceptFuture &#x3D; rpcGatewayFuture.thenAcceptAsync(</span><br><span class="line">         (G rpcGateway) -&gt; &#123;</span><br><span class="line">            log.info(&quot;Resolved &#123;&#125; address, beginning registration&quot;, targetName);</span><br><span class="line">            register(rpcGateway, 1, retryingRegistrationConfiguration.getInitialRegistrationTimeoutMillis());</span><br><span class="line">         &#125;,</span><br><span class="line">         rpcService.getExecutor());</span><br><span class="line"></span><br><span class="line">      ......</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line">private void register(final G gateway, final int attempt, final long timeoutMillis) &#123;</span><br><span class="line">   &#x2F;&#x2F; eager check for canceling to avoid some unnecessary work</span><br><span class="line">   if (canceled) &#123;</span><br><span class="line">      return;</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   try &#123;</span><br><span class="line">      log.info(&quot;Registration at &#123;&#125; attempt &#123;&#125; (timeout&#x3D;&#123;&#125;ms)&quot;, targetName, attempt, timeoutMillis);</span><br><span class="line">      &#x2F;&#x2F;开始注册</span><br><span class="line">      CompletableFuture&lt;RegistrationResponse&gt; registrationFuture &#x3D; invokeRegistration(gateway, fencingToken, timeoutMillis);</span><br><span class="line"></span><br><span class="line">      &#x2F;&#x2F; if the registration was successful, let the TaskExecutor know</span><br><span class="line">      CompletableFuture&lt;Void&gt; registrationAcceptFuture &#x3D; registrationFuture.thenAcceptAsync(</span><br><span class="line">         (RegistrationResponse result) -&gt; &#123;</span><br><span class="line">            if (!isCanceled()) &#123;</span><br><span class="line">               if (result instanceof RegistrationResponse.Success) &#123;</span><br><span class="line">                  &#x2F;&#x2F; registration successful!</span><br><span class="line">                  S success &#x3D; (S) result;</span><br><span class="line">                  completionFuture.complete(Tuple2.of(gateway, success));</span><br><span class="line">               &#125;</span><br><span class="line">               else &#123;</span><br><span class="line">                  &#x2F;&#x2F; registration refused or unknown</span><br><span class="line">                  if (result instanceof RegistrationResponse.Decline) &#123;</span><br><span class="line">                     RegistrationResponse.Decline decline &#x3D; (RegistrationResponse.Decline) result;</span><br><span class="line">                     log.info(&quot;Registration at &#123;&#125; was declined: &#123;&#125;&quot;, targetName, decline.getReason());</span><br><span class="line">                  &#125; else &#123;</span><br><span class="line">                     log.error(&quot;Received unknown response to registration attempt: &#123;&#125;&quot;, result);</span><br><span class="line">                  &#125;</span><br><span class="line"></span><br><span class="line">                  log.info(&quot;Pausing and re-attempting registration in &#123;&#125; ms&quot;, retryingRegistrationConfiguration.getRefusedDelayMillis());</span><br><span class="line">                  registerLater(gateway, 1, retryingRegistrationConfiguration.getInitialRegistrationTimeoutMillis(), retryingRegistrationConfiguration.getRefusedDelayMillis());</span><br><span class="line">               &#125;</span><br><span class="line">            &#125;</span><br><span class="line">         &#125;,</span><br><span class="line">         rpcService.getExecutor());</span><br><span class="line"></span><br><span class="line">......</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>JobMaster的invokeRegistration，调用ResourceManagerGateway的注册方法</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">protected CompletableFuture&lt;RegistrationResponse&gt; invokeRegistration(</span><br><span class="line">            ResourceManagerGateway gateway, ResourceManagerId fencingToken, long timeoutMillis) &#123;</span><br><span class="line">         Time timeout &#x3D; Time.milliseconds(timeoutMillis);</span><br><span class="line"></span><br><span class="line">         return gateway.registerJobManager(</span><br><span class="line">            jobMasterId,</span><br><span class="line">            jobManagerResourceID,</span><br><span class="line">            jobManagerRpcAddress,</span><br><span class="line">            jobID,</span><br><span class="line">            timeout);</span><br><span class="line">      &#125;</span><br><span class="line">   &#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>ResourceManager注册JobManager的方法</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br></pre></td><td class="code"><pre><span class="line">public CompletableFuture&lt;RegistrationResponse&gt; registerJobManager(</span><br><span class="line">      final JobMasterId jobMasterId,</span><br><span class="line">      final ResourceID jobManagerResourceId,</span><br><span class="line">      final String jobManagerAddress,</span><br><span class="line">      final JobID jobId,</span><br><span class="line">      final Time timeout) &#123;</span><br><span class="line"></span><br><span class="line">   checkNotNull(jobMasterId);</span><br><span class="line">   checkNotNull(jobManagerResourceId);</span><br><span class="line">   checkNotNull(jobManagerAddress);</span><br><span class="line">   checkNotNull(jobId);</span><br><span class="line"></span><br><span class="line">   if (!jobLeaderIdService.containsJob(jobId)) &#123;</span><br><span class="line">      try &#123;</span><br><span class="line">         jobLeaderIdService.addJob(jobId);</span><br><span class="line">      &#125; catch (Exception e) &#123;</span><br><span class="line">         ResourceManagerException exception &#x3D; new ResourceManagerException(&quot;Could not add the job &quot; +</span><br><span class="line">            jobId + &quot; to the job id leader service.&quot;, e);</span><br><span class="line"></span><br><span class="line">            onFatalError(exception);</span><br><span class="line"></span><br><span class="line">         log.error(&quot;Could not add job &#123;&#125; to job leader id service.&quot;, jobId, e);</span><br><span class="line">         return FutureUtils.completedExceptionally(exception);</span><br><span class="line">      &#125;</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   log.info(&quot;Registering job manager &#123;&#125;@&#123;&#125; for job &#123;&#125;.&quot;, jobMasterId, jobManagerAddress, jobId);</span><br><span class="line"></span><br><span class="line">   CompletableFuture&lt;JobMasterId&gt; jobMasterIdFuture;</span><br><span class="line"></span><br><span class="line">   try &#123;</span><br><span class="line">      jobMasterIdFuture &#x3D; jobLeaderIdService.getLeaderId(jobId);</span><br><span class="line">   &#125; catch (Exception e) &#123;</span><br><span class="line">      &#x2F;&#x2F; we cannot check the job leader id so let&#39;s fail</span><br><span class="line">      &#x2F;&#x2F; TODO: Maybe it&#39;s also ok to skip this check in case that we cannot check the leader id</span><br><span class="line">      ResourceManagerException exception &#x3D; new ResourceManagerException(&quot;Cannot obtain the &quot; +</span><br><span class="line">         &quot;job leader id future to verify the correct job leader.&quot;, e);</span><br><span class="line"></span><br><span class="line">         onFatalError(exception);</span><br><span class="line"></span><br><span class="line">      log.debug(&quot;Could not obtain the job leader id future to verify the correct job leader.&quot;);</span><br><span class="line">      return FutureUtils.completedExceptionally(exception);</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   CompletableFuture&lt;JobMasterGateway&gt; jobMasterGatewayFuture &#x3D; getRpcService().connect(jobManagerAddress, jobMasterId, JobMasterGateway.class);</span><br><span class="line"></span><br><span class="line">   CompletableFuture&lt;RegistrationResponse&gt; registrationResponseFuture &#x3D; jobMasterGatewayFuture.thenCombineAsync(</span><br><span class="line">      jobMasterIdFuture,</span><br><span class="line">      (JobMasterGateway jobMasterGateway, JobMasterId leadingJobMasterId) -&gt; &#123;</span><br><span class="line">         if (Objects.equals(leadingJobMasterId, jobMasterId)) &#123;</span><br><span class="line">            return registerJobMasterInternal(</span><br><span class="line">               jobMasterGateway,</span><br><span class="line">               jobId,</span><br><span class="line">               jobManagerAddress,</span><br><span class="line">               jobManagerResourceId);</span><br><span class="line">         &#125; else &#123;</span><br><span class="line">            final String declineMessage &#x3D; String.format(</span><br><span class="line">               &quot;The leading JobMaster id %s did not match the received JobMaster id %s. &quot; +</span><br><span class="line">               &quot;This indicates that a JobMaster leader change has happened.&quot;,</span><br><span class="line">               leadingJobMasterId,</span><br><span class="line">               jobMasterId);</span><br><span class="line">            log.debug(declineMessage);</span><br><span class="line">            return new RegistrationResponse.Decline(declineMessage);</span><br><span class="line">         &#125;</span><br><span class="line">      &#125;,</span><br><span class="line">      getMainThreadExecutor());</span><br><span class="line"></span><br><span class="line">   &#x2F;&#x2F; handle exceptions which might have occurred in one of the futures inputs of combine</span><br><span class="line">   return registrationResponseFuture.handleAsync(</span><br><span class="line">      (RegistrationResponse registrationResponse, Throwable throwable) -&gt; &#123;</span><br><span class="line">         if (throwable !&#x3D; null) &#123;</span><br><span class="line">            if (log.isDebugEnabled()) &#123;</span><br><span class="line">               log.debug(&quot;Registration of job manager &#123;&#125;@&#123;&#125; failed.&quot;, jobMasterId, jobManagerAddress, throwable);</span><br><span class="line">            &#125; else &#123;</span><br><span class="line">               log.info(&quot;Registration of job manager &#123;&#125;@&#123;&#125; failed.&quot;, jobMasterId, jobManagerAddress);</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            return new RegistrationResponse.Decline(throwable.getMessage());</span><br><span class="line">         &#125; else &#123;</span><br><span class="line">            return registrationResponse;</span><br><span class="line">         &#125;</span><br><span class="line">      &#125;,</span><br><span class="line">      getRpcService().getExecutor());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br></pre></td><td class="code"><pre><span class="line">private RegistrationResponse registerJobMasterInternal(</span><br><span class="line">   final JobMasterGateway jobMasterGateway,</span><br><span class="line">   JobID jobId,</span><br><span class="line">   String jobManagerAddress,</span><br><span class="line">   ResourceID jobManagerResourceId) &#123;</span><br><span class="line">   if (jobManagerRegistrations.containsKey(jobId)) &#123;</span><br><span class="line">      JobManagerRegistration oldJobManagerRegistration &#x3D; jobManagerRegistrations.get(jobId);</span><br><span class="line"></span><br><span class="line">      if (Objects.equals(oldJobManagerRegistration.getJobMasterId(), jobMasterGateway.getFencingToken())) &#123;</span><br><span class="line">         &#x2F;&#x2F; same registration</span><br><span class="line">         log.debug(&quot;Job manager &#123;&#125;@&#123;&#125; was already registered.&quot;, jobMasterGateway.getFencingToken(), jobManagerAddress);</span><br><span class="line">      &#125; else &#123;</span><br><span class="line">         &#x2F;&#x2F; tell old job manager that he is no longer the job leader</span><br><span class="line">         disconnectJobManager(</span><br><span class="line">            oldJobManagerRegistration.getJobID(),</span><br><span class="line">            new Exception(&quot;New job leader for job &quot; + jobId + &quot; found.&quot;));</span><br><span class="line"></span><br><span class="line">         JobManagerRegistration jobManagerRegistration &#x3D; new JobManagerRegistration(</span><br><span class="line">            jobId,</span><br><span class="line">            jobManagerResourceId,</span><br><span class="line">            jobMasterGateway);</span><br><span class="line">         jobManagerRegistrations.put(jobId, jobManagerRegistration);</span><br><span class="line">         jmResourceIdRegistrations.put(jobManagerResourceId, jobManagerRegistration);</span><br><span class="line">      &#125;</span><br><span class="line">   &#125; else &#123;</span><br><span class="line">      &#x2F;&#x2F; new registration for the job</span><br><span class="line">      JobManagerRegistration jobManagerRegistration &#x3D; new JobManagerRegistration(</span><br><span class="line">         jobId,</span><br><span class="line">         jobManagerResourceId,</span><br><span class="line">         jobMasterGateway);</span><br><span class="line">      jobManagerRegistrations.put(jobId, jobManagerRegistration);</span><br><span class="line">      jmResourceIdRegistrations.put(jobManagerResourceId, jobManagerRegistration);</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   log.info(&quot;Registered job manager &#123;&#125;@&#123;&#125; for job &#123;&#125;.&quot;, jobMasterGateway.getFencingToken(), jobManagerAddress, jobId);</span><br><span class="line"></span><br><span class="line">   jobManagerHeartbeatManager.monitorTarget(jobManagerResourceId, new HeartbeatTarget&lt;Void&gt;() &#123;</span><br><span class="line">      @Override</span><br><span class="line">      public void receiveHeartbeat(ResourceID resourceID, Void payload) &#123;</span><br><span class="line">         &#x2F;&#x2F; the ResourceManager will always send heartbeat requests to the JobManager</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      @Override</span><br><span class="line">      public void requestHeartbeat(ResourceID resourceID, Void payload) &#123;</span><br><span class="line">         jobMasterGateway.heartbeatFromResourceManager(resourceID);</span><br><span class="line">      &#125;</span><br><span class="line">   &#125;);</span><br><span class="line"></span><br><span class="line">   return new JobMasterRegistrationSuccess(</span><br><span class="line">      getFencingToken(),</span><br><span class="line">      resourceId);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>生成JobManagerRegistration，之后就可以和ResourceManager通信了</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2020/06/22/TaskManager%E4%B8%8EJobManager%E5%BB%BA%E7%AB%8B%E8%BF%9E%E6%8E%A5/" rel="next" title="TaskManager与JobManager建立连接">
+                <i class="fa fa-chevron-left"></i> TaskManager与JobManager建立连接
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+
+      <section class="site-overview-wrap sidebar-panel sidebar-panel-active">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">HH KKs</p>
+              <p class="site-description motion-element" itemprop="description"></p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">16</span>
+                  <span class="site-state-item-name">posts</span>
+                </a>
+              </div>
+            
+
+            
+
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">HH KKs</span>
+
+  
+</div>
+
+
+  <div class="powered-by">Powered by <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a></div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">Theme &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Muse</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
