@@ -36,7 +36,7 @@ leancloud:
   app_key: 
 
 #LeanStatistics文章阅读统计功能，采用上方LeanCloud配置（可选值：true/false）
-LeanStatistics_enable: false
+LeanStatistics_enable: true
 
 # 是否开启评论模块（可选值：true/false）
 comment: true
