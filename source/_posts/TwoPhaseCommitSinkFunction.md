@@ -1,3 +1,12 @@
+```css
+title: TwoPhaseCommitSinkFunction
+date: 2020-3-28 18:00:00
+tags:
+ - flink
+ - 源码
+categories: "flink"
+```
+
 ```
 @PublicEvolving
 public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
